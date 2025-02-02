@@ -3,10 +3,11 @@ use ahash::AHashMap;
 fn main() {
     let target_sum = read_target_sum_from_cli();
     let triples = pythagorean_triples(target_sum);
-    let _kernel = magic_square_kernel(&triples);
+    let kernel = magic_square_kernel(triples);
 
-    for squares in triples.chunks_exact(3) {
-        println!("{} = {} + {} + {}", target_sum, squares[0], squares[1], squares[2]);
+    if let Some(kernel) = kernel {
+        let filename = write_graph_to_file(target_sum, &kernel);
+        println!("{}", filename);
     }
 }
 
@@ -140,4 +141,65 @@ fn magic_square_kernel(mut triples: Vec<u64>) -> Option<Vec<u64>> {
             occurrences.retain(|_, &mut count| count != 0);
         }
     }
+}
+
+fn write_graph_to_file(target_sum: u64, kernel: &[u64]) -> String {
+    let mut node_labels = AHashMap::<u64, u16>::new();
+    let mut node_targets = AHashMap::<u16, Vec<u16>>::new();
+
+    let mut label: i32 = -1;
+
+    for squares in kernel.chunks_exact(3) {
+        let square1 = squares[0];
+        let square2 = squares[1];
+        let square3 = squares[2];
+
+        // Assign a unique label to each node, starting from 0.
+        node_labels.entry(square1).or_insert_with(|| { label += 1; label as u16 });
+        node_labels.entry(square2).or_insert_with(|| { label += 1; label as u16 });
+        node_labels.entry(square3).or_insert_with(|| { label += 1; label as u16 });
+
+        let label1 = node_labels[&square1];
+        let label2 = node_labels[&square2];
+        let label3 = node_labels[&square3];
+
+        // Add one undirected edge for each pair of nodes.
+        node_targets.entry(label1).or_default().push(label2);
+        node_targets.entry(label1).or_default().push(label3);
+        node_targets.entry(label2).or_default().push(label3);
+    }
+
+    // Write the graph to a file in 'vf' format as specified here:
+    // https://github.com/MiviaLab/vf3lib?tab=readme-ov-file#text
+    use std::io::Write;
+    let mut buffer = vec![];
+
+    // # Number of nodes
+    let num_nodes = node_labels.len() as u16;
+    writeln!(buffer, "{}\n", num_nodes).unwrap();
+
+    // # Node attributes
+    for label in 0..num_nodes {
+        writeln!(buffer, "{} 0", label).unwrap();
+    }
+
+    // # Edges coming out of node {label}
+    for label in 0..node_labels.len() as u16 {
+        if let Some(targets) = node_targets.get(&label) {
+            let num_targets = targets.len() as u16;
+            writeln!(buffer, "\n{}", num_targets).unwrap();
+
+            for target in targets {
+                writeln!(buffer, "{} {}", label, target).unwrap();
+            }
+        } else {
+            writeln!(buffer, "\n0").unwrap();
+        }
+    }
+
+    let tmp = std::env::temp_dir();
+    let path = tmp.join(format!("magic_sum_graph_{}.vf", target_sum));
+
+    std::fs::File::create(&path).unwrap().write_all(&buffer).unwrap();
+    path.display().to_string()
 }
