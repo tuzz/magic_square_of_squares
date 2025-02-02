@@ -1,11 +1,16 @@
 fn main() {
-    let mut squares_by_residue_class = [vec![], vec![], vec![]];
     let target_sum = 100000011; // TODO: command-line argument
+
+    let mut squares_by_residue_class = [vec![], vec![], vec![]];
+    let mut pythagorean_triples = vec![];
 
     for number in 1_u64.. {
         // Skip perfect squares that are not congruent to 1 modulo 24.
         let square1 = number * number;
         if square1 % 24 != 1 { continue; }
+
+        // Once the square exceeds the target sum, no more triples exist.
+        if square1 >= target_sum { break; }
 
         // Map the residues modulo 72 (1, 25, 49) to indexes (0, 1, 2).
         let residue_class1 = (square1 % 72 / 24) as usize;
@@ -22,10 +27,7 @@ fn main() {
                     for square3 in &squares2[0..i] {
                         let magic_sum = partial_sum + square3;
                         if magic_sum > target_sum { break; }
-
-                        if magic_sum == target_sum {
-                            println!("{} = {} + {} + {}", magic_sum, square1, square2, square3);
-                        }
+                        if magic_sum == target_sum { pythagorean_triples.push((square1, *square2, *square3)); }
                     }
                 }
             // Otherwise, enumerate all pairwise combinations of the arrays.
@@ -42,10 +44,7 @@ fn main() {
 
                         let magic_sum = partial_sum + square3;
                         if magic_sum > target_sum { break; }
-
-                        if magic_sum == target_sum {
-                            println!("{} = {} + {} + {}", magic_sum, square1, square2, square3);
-                        }
+                        if magic_sum == target_sum { pythagorean_triples.push((square1, *square2, *square3)); }
                     }
                 }
             }
@@ -53,5 +52,9 @@ fn main() {
 
         // Skip duplicate perfect squares by pushing after the for loop.
         squares_by_residue_class[residue_class1].push(square1);
+    }
+
+    for (square1, square2, square3) in &pythagorean_triples {
+        println!("{} = {} + {} + {}", target_sum, square1, square2, square3);
     }
 }
