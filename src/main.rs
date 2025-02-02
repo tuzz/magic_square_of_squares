@@ -1,9 +1,12 @@
+use ahash::AHashMap;
+
 fn main() {
     let target_sum = read_target_sum_from_cli();
     let triples = pythagorean_triples(target_sum);
+    let _kernel = magic_square_kernel(&triples);
 
-    for (square1, square2, square3) in &triples {
-        println!("{} = {} + {} + {}", target_sum, square1, square2, square3);
+    for squares in triples.chunks_exact(3) {
+        println!("{} = {} + {} + {}", target_sum, squares[0], squares[1], squares[2]);
     }
 }
 
@@ -23,7 +26,7 @@ fn read_target_sum_from_cli() -> u64 {
     target_sum
 }
 
-fn pythagorean_triples(target_sum: u64) -> Vec<(u64, u64, u64)> {
+fn pythagorean_triples(target_sum: u64) -> Vec<u64> {
     let mut pythagorean_triples = vec![];
     let mut squares_by_residue_class = [vec![], vec![], vec![]];
 
@@ -50,7 +53,7 @@ fn pythagorean_triples(target_sum: u64) -> Vec<(u64, u64, u64)> {
                     for square3 in &squares2[0..i] {
                         let magic_sum = partial_sum + square3;
                         if magic_sum > target_sum { break; }
-                        if magic_sum == target_sum { pythagorean_triples.push((square1, *square2, *square3)); }
+                        if magic_sum == target_sum { pythagorean_triples.extend([square1, *square2, *square3]); }
                     }
                 }
             // Otherwise, enumerate all pairwise combinations of the arrays.
@@ -67,7 +70,7 @@ fn pythagorean_triples(target_sum: u64) -> Vec<(u64, u64, u64)> {
 
                         let magic_sum = partial_sum + square3;
                         if magic_sum > target_sum { break; }
-                        if magic_sum == target_sum { pythagorean_triples.push((square1, *square2, *square3)); }
+                        if magic_sum == target_sum { pythagorean_triples.extend([square1, *square2, *square3]); }
                     }
                 }
             }
@@ -78,4 +81,30 @@ fn pythagorean_triples(target_sum: u64) -> Vec<(u64, u64, u64)> {
     }
 
     unreachable!();
+}
+
+fn magic_square_kernel(triples: &[u64]) -> Option<()> {
+    // No magic square exists if fewer than 8 ways to make the magic sum.
+    if triples.len() < 8 * 3 { return None; }
+
+    // Count the number of times each square appears in a magic sum.
+    let mut occurrences = AHashMap::<u64, u32>::new();
+    for &square in triples { *occurrences.entry(square).or_insert(0) += 1; }
+
+    let mut center_candidates = 0;
+    let mut corner_candidates = 0;
+    let mut edge_candidates = 0;
+
+    for &count in occurrences.values() {
+        if count >= 4 { center_candidates += 1; }
+        if count >= 3 { corner_candidates += 1; }
+        if count >= 2 { edge_candidates += 1; }
+    }
+
+    // No magic square exists if there aren't enough of each candidate.
+    if center_candidates < 1 { return None; }
+    if corner_candidates < 5 { return None; } // Includes the center.
+    if edge_candidates < 9 { return None; } // Includes the center and corners.
+
+    None // TODO
 }
