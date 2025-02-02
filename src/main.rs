@@ -7,7 +7,7 @@ fn main() {
 
     if let Some(kernel) = kernel {
         let filename = write_graph_to_file(target_sum, &kernel);
-        println!("{}", filename);
+        let _isomorphisms = subgraph_isomorphisms(&filename);
     }
 }
 
@@ -20,7 +20,7 @@ fn read_target_sum_from_cli() -> u64 {
     };
 
     if target_sum % 72 != 3 {
-        eprintln!("The target sum must be congruent to 3 modulo 72.");
+        eprintln!("Error: The target sum must be congruent to 3 modulo 72.");
         std::process::exit(1);
     }
 
@@ -202,4 +202,30 @@ fn write_graph_to_file(target_sum: u64, kernel: &[u64]) -> String {
 
     std::fs::File::create(&path).unwrap().write_all(&buffer).unwrap();
     path.display().to_string()
+}
+
+fn subgraph_isomorphisms(filename: &str) -> Vec<()> {
+    let result = std::process::Command::new("vf3")
+        .arg("-u") // The graph is undirected.
+        .arg(filename) // TODO: add pattern graph
+        .arg(filename)
+        .output();
+
+    if let Ok(output) = result {
+        let whitespace = output.stdout.iter().position(|byte| *byte == 32).unwrap();
+        let first_word = std::str::from_utf8(&output.stdout[..whitespace]).unwrap();
+
+        let number_of_solutions = first_word.parse::<u32>().unwrap();
+        if number_of_solutions > 0 {
+            println!("EUREKA! {}", filename);
+        } else {
+            std::fs::remove_file(filename).unwrap();
+        }
+
+        // TODO: return the isomorphisms so they can be decoded.
+        vec![]
+    } else {
+        eprintln!("Error: Could not locate the vf3 executable in your path.");
+        std::process::exit(1);
+    }
 }
