@@ -1,14 +1,22 @@
 use ahash::AHashMap;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
+
 mod args;
 
 fn main() {
     let args = crate::args::Args::parse_command_line();
 
-    let threads = (0..args.threads).map(|i| {
-        std::thread::spawn(move || {
-            let mut target_sum = args.from + i * args.stride;
+    // Use an atomic to share the target_sum between threads which increments by
+    // the stride. The SeqCst ordering prevents threads reading the same value.
+    let atomic = Arc::new(AtomicU64::new(args.from));
 
+    let threads = (0..args.threads).map(|i| {
+        let atomic = Arc::clone(&atomic);
+
+        std::thread::spawn(move || {
             loop {
+                let target_sum = atomic.fetch_add(args.stride, Ordering::SeqCst);
                 let triples = pythagorean_triples(target_sum);
                 let kernel = magic_square_kernel(triples);
 
@@ -18,8 +26,6 @@ fn main() {
                 } else {
                     println!("thread {}: magic sum {} has 0 solutions.", i, target_sum);
                 }
-
-                target_sum += args.stride * args.threads;
             }
         })
     }).collect::<Vec<_>>();
