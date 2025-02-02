@@ -37,6 +37,9 @@ fn main() {
                     if partial_sum >= target_sum { break; }
 
                     for square3 in squares3 {
+                        // Skip symmetrical triples where B + C are swapped.
+                        if square3 > square2 { break; }
+
                         let magic_sum = partial_sum + square3;
                         if magic_sum > target_sum { break; }
 
