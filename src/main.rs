@@ -1,5 +1,6 @@
 fn main() {
     let mut squares_by_residue_class = [vec![], vec![], vec![]];
+    let target_sum = 100000011; // TODO: command-line argument
 
     for number in 1_u64.. {
         // Skip perfect squares that are not congruent to 1 modulo 24.
@@ -16,10 +17,15 @@ fn main() {
             if residue_class2 == residue_class3 {
                 for (i, square2) in squares2.iter().enumerate() {
                     let partial_sum = square1 + square2;
+                    if partial_sum >= target_sum { break; }
 
                     for square3 in &squares2[0..i] {
                         let magic_sum = partial_sum + square3;
-                        if magic_sum > 1_000_000_000 { return; }
+                        if magic_sum > target_sum { break; }
+
+                        if magic_sum == target_sum {
+                            println!("{} = {} + {} + {}", magic_sum, square1, square2, square3);
+                        }
                     }
                 }
             // Otherwise, enumerate all pairwise combinations of the arrays.
@@ -28,10 +34,15 @@ fn main() {
 
                 for square2 in squares2 {
                     let partial_sum = square1 + square2;
+                    if partial_sum >= target_sum { break; }
 
                     for square3 in squares3 {
                         let magic_sum = partial_sum + square3;
-                        if magic_sum > 1_000_000_000 { return; }
+                        if magic_sum > target_sum { break; }
+
+                        if magic_sum == target_sum {
+                            println!("{} = {} + {} + {}", magic_sum, square1, square2, square3);
+                        }
                     }
                 }
             }
