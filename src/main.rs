@@ -207,7 +207,7 @@ fn write_graph_to_file(target_sum: u64, kernel: &[u64]) -> String {
 fn subgraph_isomorphisms(filename: &str) -> Vec<()> {
     let result = std::process::Command::new("vf3")
         .arg("-u") // The graph is undirected.
-        .arg(filename) // TODO: add pattern graph
+        .arg("pattern.vf")
         .arg(filename)
         .output();
 
