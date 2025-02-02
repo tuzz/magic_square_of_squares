@@ -83,11 +83,11 @@ fn pythagorean_triples(target_sum: u64) -> Vec<u64> {
     unreachable!();
 }
 
-fn magic_square_kernel(triples: &[u64]) -> Option<()> {
-    // No magic square exists if fewer than 8 ways to make the magic sum.
+fn magic_square_kernel(triples: &[u64]) -> Option<Vec<u64>> {
+    // No magic square exists there are less than 8 ways to make the magic sum.
     if triples.len() < 8 * 3 { return None; }
 
-    // Count the number of times each square appears in a magic sum.
+    // Count the number of times each perfect square appears in a magic sum.
     let mut occurrences = AHashMap::<u64, u32>::new();
     for &square in triples { *occurrences.entry(square).or_insert(0) += 1; }
 
@@ -101,10 +101,22 @@ fn magic_square_kernel(triples: &[u64]) -> Option<()> {
         if count >= 2 { edge_candidates += 1; }
     }
 
-    // No magic square exists if there aren't enough of each candidate.
+    // No magic square exists if there aren't enough of each candidate cell.
     if center_candidates < 1 { return None; }
     if corner_candidates < 5 { return None; } // Includes the center.
     if edge_candidates < 9 { return None; } // Includes the center and corners.
 
-    None // TODO
+    let mut kernel = vec![];
+
+    // Eliminate Pythagorean triples where any of the perfect squares appears
+    // less than twice since those triples can't be part of the magic square.
+    for squares in triples.chunks_exact(3) {
+        if occurrences[&squares[0]] < 2 { continue; }
+        if occurrences[&squares[1]] < 2 { continue; }
+        if occurrences[&squares[2]] < 2 { continue; }
+
+        kernel.extend_from_slice(squares);
+    }
+
+    Some(kernel)
 }
