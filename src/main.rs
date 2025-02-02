@@ -1,31 +1,34 @@
 use ahash::AHashMap;
+mod args;
 
 fn main() {
-    let target_sum = read_target_sum_from_cli();
-    let triples = pythagorean_triples(target_sum);
-    let kernel = magic_square_kernel(triples);
+    let args = crate::args::Args::parse_command_line();
 
-    if let Some(kernel) = kernel {
-        let filename = write_graph_to_file(target_sum, &kernel);
-        let _isomorphisms = subgraph_isomorphisms(&filename);
+    let threads = (0..args.threads).map(|i| {
+        std::thread::spawn(move || {
+            let mut target_sum = args.from + i * args.stride;
+
+            loop {
+                let triples = pythagorean_triples(target_sum);
+                let kernel = magic_square_kernel(triples);
+
+                if let Some(kernel) = kernel {
+                    let filename = write_graph_to_file(target_sum, &kernel);
+                    let _isomorphisms = subgraph_isomorphisms(target_sum, &filename, i);
+                } else {
+                    println!("thread {}: magic sum {} has 0 solutions.", i, target_sum);
+                }
+
+                target_sum += args.stride * args.threads;
+            }
+        })
+    }).collect::<Vec<_>>();
+
+    for thread in threads {
+        thread.join().unwrap();
     }
 }
 
-fn read_target_sum_from_cli() -> u64 {
-    let target_sum = match std::env::args().nth(1) {
-        Some(string) => string.parse::<u64>().unwrap(),
-        None => { eprintln!("Usage: ./magic_squares <target_sum>");
-            std::process::exit(1);
-        }
-    };
-
-    if target_sum % 72 != 3 {
-        eprintln!("Error: The target sum must be congruent to 3 modulo 72.");
-        std::process::exit(1);
-    }
-
-    target_sum
-}
 
 fn pythagorean_triples(target_sum: u64) -> Vec<u64> {
     let mut pythagorean_triples = vec![];
@@ -204,7 +207,7 @@ fn write_graph_to_file(target_sum: u64, kernel: &[u64]) -> String {
     path.display().to_string()
 }
 
-fn subgraph_isomorphisms(filename: &str) -> Vec<()> {
+fn subgraph_isomorphisms(target_sum: u64, filename: &str, i: u64) -> Vec<()> {
     let result = std::process::Command::new("vf3")
         .arg("-u") // The graph is undirected.
         .arg("pattern.vf")
@@ -216,11 +219,10 @@ fn subgraph_isomorphisms(filename: &str) -> Vec<()> {
         let first_word = std::str::from_utf8(&output.stdout[..whitespace]).unwrap();
 
         let number_of_solutions = first_word.parse::<u32>().unwrap();
-        if number_of_solutions > 0 {
-            println!("EUREKA! {}", filename);
-        } else {
-            std::fs::remove_file(filename).unwrap();
-        }
+        if number_of_solutions == 0 { std::fs::remove_file(filename).unwrap(); }
+
+        println!("thread {}: magic sum {} has {} solutions.", i, target_sum, number_of_solutions);
+        if number_of_solutions > 0 { println!("EUREKA!"); }
 
         // TODO: return the isomorphisms so they can be decoded.
         vec![]
