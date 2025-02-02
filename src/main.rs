@@ -1,8 +1,31 @@
 fn main() {
-    let target_sum = read_cli_argument();
+    let target_sum = read_target_sum_from_cli();
+    let triples = pythagorean_triples(target_sum);
 
-    let mut squares_by_residue_class = [vec![], vec![], vec![]];
+    for (square1, square2, square3) in &triples {
+        println!("{} = {} + {} + {}", target_sum, square1, square2, square3);
+    }
+}
+
+fn read_target_sum_from_cli() -> u64 {
+    let target_sum = match std::env::args().nth(1) {
+        Some(string) => string.parse::<u64>().unwrap(),
+        None => { eprintln!("Usage: ./magic_squares <target_sum>");
+            std::process::exit(1);
+        }
+    };
+
+    if target_sum % 72 != 3 {
+        eprintln!("The target sum must be congruent to 3 modulo 72.");
+        std::process::exit(1);
+    }
+
+    target_sum
+}
+
+fn pythagorean_triples(target_sum: u64) -> Vec<(u64, u64, u64)> {
     let mut pythagorean_triples = vec![];
+    let mut squares_by_residue_class = [vec![], vec![], vec![]];
 
     for number in 1_u64.. {
         // Skip perfect squares that are not congruent to 1 modulo 24.
@@ -10,7 +33,7 @@ fn main() {
         if square1 % 24 != 1 { continue; }
 
         // Once the square exceeds the target sum, no more triples exist.
-        if square1 >= target_sum { break; }
+        if square1 >= target_sum { return pythagorean_triples; }
 
         // Map the residues modulo 72 (1, 25, 49) to indexes (0, 1, 2).
         let residue_class1 = (square1 % 72 / 24) as usize;
@@ -54,23 +77,5 @@ fn main() {
         squares_by_residue_class[residue_class1].push(square1);
     }
 
-    for (square1, square2, square3) in &pythagorean_triples {
-        println!("{} = {} + {} + {}", target_sum, square1, square2, square3);
-    }
-}
-
-fn read_cli_argument() -> u64 {
-    let target_sum = match std::env::args().nth(1) {
-        Some(string) => string.parse::<u64>().unwrap(),
-        None => { eprintln!("Usage: ./magic_squares <target_sum>");
-            std::process::exit(1);
-        }
-    };
-
-    if target_sum % 72 != 3 {
-        eprintln!("The target sum must be congruent to 3 modulo 72.");
-        std::process::exit(1);
-    }
-
-    target_sum
+    unreachable!();
 }
