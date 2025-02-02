@@ -1,5 +1,5 @@
 fn main() {
-    let target_sum = 100000011; // TODO: command-line argument
+    let target_sum = read_cli_argument();
 
     let mut squares_by_residue_class = [vec![], vec![], vec![]];
     let mut pythagorean_triples = vec![];
@@ -57,4 +57,20 @@ fn main() {
     for (square1, square2, square3) in &pythagorean_triples {
         println!("{} = {} + {} + {}", target_sum, square1, square2, square3);
     }
+}
+
+fn read_cli_argument() -> u64 {
+    let target_sum = match std::env::args().nth(1) {
+        Some(string) => string.parse::<u64>().unwrap(),
+        None => { eprintln!("Usage: ./magic_squares <target_sum>");
+            std::process::exit(1);
+        }
+    };
+
+    if target_sum % 72 != 3 {
+        eprintln!("The target sum must be congruent to 3 modulo 72.");
+        std::process::exit(1);
+    }
+
+    target_sum
 }
