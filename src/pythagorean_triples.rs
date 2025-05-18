@@ -9,6 +9,12 @@ pub struct PythagoreanTriples {
     c_values: Vec<u64>,
 }
 
+#[derive(Default)]
+struct TemporaryBuffer {
+    indexes: Vec<usize>,
+    values: Vec<u64>,
+}
+
 type SimdU64 = Simd::<u64, { crate::SIMD_LANES }>;
 
 impl PythagoreanTriples {
@@ -125,6 +131,19 @@ impl PythagoreanTriples {
         }
     }
 
+    pub fn remove_trivial(&mut self, buffer: &mut TemporaryBuffer) {
+        buffer.indexes.clear();
+
+        self.b_values.iter().enumerate().for_each(|(i, &b)| if b != 0 { buffer.indexes.push(i); });
+        buffer.values.resize(buffer.indexes.len(), 0);
+
+        for values in [&mut self.a_values, &mut self.b_values, &mut self.c_values] {
+            buffer.indexes.iter().enumerate().for_each(|(i, &j)| buffer.values[i] = values[j]);
+            values.clear();
+            values.extend_from_slice(&buffer.values);
+        }
+    }
+
     // Use Cornacchia's algorithm to solve a^2 + b^2 = p then apply Euclid's
     // parameterization to find the primitive Pythagorean triple for the prime.
     fn compute(pythagorean_prime: u64) -> (u64, u64) {
@@ -227,5 +246,32 @@ mod test {
             let c = output.c_values[i];
             assert_eq!(a * a + b * b, c * c);
         }
+    }
+
+    #[test]
+    fn it_returns_a_trivial_triple_with_b_set_to_zero_if_the_products_are_the_same() {
+        let mut triples = PythagoreanTriples::new(1);
+        let mut output = PythagoreanTriples::with_capacity(2);
+
+        triples.product((3, 4, 5), &mut output);
+        assert_eq!(output.len(), 2);
+
+        assert_eq!(&output.a_values, &[7, 25]);
+        assert_eq!(&output.b_values, &[24, 0]);
+    }
+
+    #[test]
+    fn it_can_remove_trivial_triples() {
+        let mut triples = PythagoreanTriples::with_capacity(5);
+        let mut buffer = TemporaryBuffer::default();
+
+        triples.a_values.extend_from_slice(&[3, 5, 5, 13, 0]);
+        triples.b_values.extend_from_slice(&[4, 0, 12, 0, 0]);
+        triples.c_values.extend_from_slice(&[5, 5, 13, 13, 0]);
+
+        triples.remove_trivial(&mut buffer);
+        assert_eq!(&triples.a_values, &[3, 5]);
+        assert_eq!(&triples.b_values, &[4, 12]);
+        assert_eq!(&triples.c_values, &[5, 13]);
     }
 }
