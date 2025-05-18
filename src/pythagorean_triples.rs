@@ -1,8 +1,33 @@
 use fast_modulo::powmod_u64 as modular_exponentiation;
 
-pub struct PythagoreanTriples;
+pub struct PythagoreanTriples {
+    a_values: Vec<u64>,
+    b_values: Vec<u64>,
+    c_values: Vec<u64>,
+}
 
 impl PythagoreanTriples {
+    pub fn new(num_primes: usize) -> Self {
+        let mut a_values = Vec::with_capacity(num_primes);
+        let mut b_values = Vec::with_capacity(num_primes);
+        let mut c_values = Vec::with_capacity(num_primes);
+
+        for prime in primal::Primes::all().filter(|p| p % 4 == 1).take(num_primes) {
+            let prime = prime as u64;
+            let (a, b) = Self::compute(prime);
+
+            a_values.push(a);
+            b_values.push(b);
+            c_values.push(prime);
+        }
+
+        Self { a_values, b_values, c_values }
+    }
+
+    pub fn len(&self) -> usize {
+        self.a_values.len()
+    }
+
     // Use Cornacchia's algorithm to solve a^2 + b^2 = p then apply Euclid's
     // parameterization to find the primitive Pythagorean triple for the prime.
     fn compute(pythagorean_prime: u64) -> (u64, u64) {
@@ -62,6 +87,23 @@ mod test {
         for c in pythagorean_primes.take(100) {
             let (a, b) = PythagoreanTriples::compute(c as u64);
             assert_eq!(a * a + b * b, (c * c) as u64);
+        }
+    }
+
+    #[test]
+    fn it_can_compute_the_first_n_primitive_pythagorean_triples() {
+        let triples = PythagoreanTriples::new(100);
+        assert_eq!(triples.len(), 100);
+
+        assert_eq!(&triples.a_values[0..5], &[3, 5, 15, 21, 35]);
+        assert_eq!(&triples.b_values[0..5], &[4, 12, 8, 20, 12]);
+        assert_eq!(&triples.c_values[0..5], &[5, 13, 17, 29, 37]);
+
+        for i in 0..100 {
+            let a = triples.a_values[i];
+            let b = triples.b_values[i];
+            let c = triples.c_values[i];
+            assert_eq!(a * a + b * b, c * c);
         }
     }
 }
