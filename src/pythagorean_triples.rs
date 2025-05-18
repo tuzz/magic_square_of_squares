@@ -11,6 +11,7 @@ pub struct PythagoreanTriples {
 
 #[derive(Default)]
 struct TemporaryBuffer {
+    ascending: Vec<usize>,
     indexes: Vec<usize>,
     values: Vec<u64>,
 }
@@ -144,6 +145,28 @@ impl PythagoreanTriples {
         }
     }
 
+    pub fn sort_and_dedup<F: Fn(&Self, usize) -> O, O: Ord>(&mut self, buffer: &mut TemporaryBuffer, key: F) {
+        let num_triples = self.len();
+
+        buffer.ascending.extend(buffer.ascending.len()..num_triples);
+        buffer.indexes.resize(num_triples, 0);
+        buffer.indexes.copy_from_slice(&buffer.ascending[..num_triples]);
+
+        buffer.indexes.sort_by_key(|&i| key(self, i));
+        buffer.indexes.dedup_by_key(|&mut i| key(self, i));
+        buffer.values.resize(buffer.indexes.len(), 0);
+
+        for values in [&mut self.a_values, &mut self.b_values, &mut self.c_values] {
+            buffer.indexes.iter().enumerate().for_each(|(i, &j)| buffer.values[i] = values[j]);
+            values.clear();
+            values.extend_from_slice(&buffer.values);
+        }
+    }
+
+    pub fn sort_and_dedup_by_c_and_a(&mut self, buffer: &mut TemporaryBuffer) {
+        self.sort_and_dedup(buffer, |triples, i| (triples.c_values[i], triples.a_values[i]));
+    }
+
     // Use Cornacchia's algorithm to solve a^2 + b^2 = p then apply Euclid's
     // parameterization to find the primitive Pythagorean triple for the prime.
     fn compute(pythagorean_prime: u64) -> (u64, u64) {
@@ -270,6 +293,21 @@ mod test {
         triples.c_values.extend_from_slice(&[5, 5, 13, 13, 0]);
 
         triples.remove_trivial(&mut buffer);
+        assert_eq!(&triples.a_values, &[3, 5]);
+        assert_eq!(&triples.b_values, &[4, 12]);
+        assert_eq!(&triples.c_values, &[5, 13]);
+    }
+
+    #[test]
+    fn it_can_sort_and_dedup_triples() {
+        let mut triples = PythagoreanTriples::with_capacity(5);
+        let mut buffer = TemporaryBuffer::default();
+
+        triples.a_values.extend_from_slice(&[3, 5, 3, 5, 3]);
+        triples.b_values.extend_from_slice(&[4, 12, 4, 12, 4]);
+        triples.c_values.extend_from_slice(&[5, 13, 5, 13, 5]);
+
+        triples.sort_and_dedup_by_c_and_a(&mut buffer);
         assert_eq!(&triples.a_values, &[3, 5]);
         assert_eq!(&triples.b_values, &[4, 12]);
         assert_eq!(&triples.c_values, &[5, 13]);
