@@ -1,4 +1,5 @@
 use fast_modulo::powmod_u64 as modular_exponentiation;
+use rayon::prelude::*;
 
 pub struct PythagoreanTriples {
     a_values: Vec<u64>,
@@ -12,13 +13,22 @@ impl PythagoreanTriples {
         let mut b_values = Vec::with_capacity(num_primes);
         let mut c_values = Vec::with_capacity(num_primes);
 
-        for prime in primal::Primes::all().filter(|p| p % 4 == 1).take(num_primes) {
-            let prime = prime as u64;
-            let (a, b) = Self::compute(prime);
+        let mut primes = primal::Primes::all().filter(|p| p % 4 == 1).take(num_primes);
+        let mut chunk = Vec::with_capacity(1_000_000);
+        let mut tuples = Vec::with_capacity(1_000_000);
 
-            a_values.push(a);
-            b_values.push(b);
-            c_values.push(prime);
+        loop {
+            chunk.clear();
+            chunk.extend(primes.by_ref().map(|p| p as u64).take(1_000_000));
+            if chunk.is_empty() { break; }
+
+            tuples.par_extend(chunk.par_iter().map(|&p| (Self::compute(p), p)));
+
+            for ((a, b), c) in tuples.drain(..) {
+                a_values.push(a);
+                b_values.push(b);
+                c_values.push(c);
+            }
         }
 
         Self { a_values, b_values, c_values }

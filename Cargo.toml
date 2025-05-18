@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 fast-modulo = "0.4.0"
 primal = "0.3.3"
+rayon = "1.10.0"
