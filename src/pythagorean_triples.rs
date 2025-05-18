@@ -1,11 +1,15 @@
 use fast_modulo::powmod_u64 as modular_exponentiation;
 use rayon::prelude::*;
+use std::simd::Simd;
+use std::simd::num::SimdUint;
 
 pub struct PythagoreanTriples {
     a_values: Vec<u64>,
     b_values: Vec<u64>,
     c_values: Vec<u64>,
 }
+
+type SimdU64 = Simd::<u64, { crate::SIMD_LANES }>;
 
 impl PythagoreanTriples {
     pub fn new(num_primes: usize) -> Self {
@@ -65,7 +69,39 @@ impl PythagoreanTriples {
         let existing_len = output.len();
         output.resize(existing_len + num_triples * 2, 0);
 
-        for i in 0..num_triples {
+        let x_vector = SimdU64::splat(x);
+        let y_vector = SimdU64::splat(y);
+        let z_vector = SimdU64::splat(z);
+
+        let remainder = num_triples % crate::SIMD_LANES;
+        let simd_end = num_triples - remainder;
+
+        for chunk_start in (0..simd_end).step_by(crate::SIMD_LANES) {
+            let chunk_end = chunk_start + crate::SIMD_LANES;
+            let a_vector = SimdU64::from_slice(&self.a_values[chunk_start..chunk_end]);
+            let b_vector = SimdU64::from_slice(&self.b_values[chunk_start..chunk_end]);
+            let c_vector = SimdU64::from_slice(&self.c_values[chunk_start..chunk_end]);
+
+            let ax_vector = a_vector * x_vector;
+            let ay_vector = a_vector * y_vector;
+            let bx_vector = b_vector * x_vector;
+            let by_vector = b_vector * y_vector;
+            let cz_vector = c_vector * z_vector;
+
+            let first_slot = existing_len + chunk_start * 2;
+            let second_slot = first_slot + crate::SIMD_LANES;
+            let second_slot_end = second_slot + crate::SIMD_LANES;
+
+            ax_vector.abs_diff(by_vector).copy_to_slice(&mut output.a_values[first_slot..second_slot]);
+            (ay_vector + bx_vector).copy_to_slice(&mut output.b_values[first_slot..second_slot]);
+            cz_vector.copy_to_slice(&mut output.c_values[first_slot..second_slot]);
+
+            (ax_vector + by_vector).copy_to_slice(&mut output.a_values[second_slot..second_slot_end]);
+            ay_vector.abs_diff(bx_vector).copy_to_slice(&mut output.b_values[second_slot..second_slot_end]);
+            cz_vector.copy_to_slice(&mut output.c_values[second_slot..second_slot_end]);
+        }
+
+        for i in simd_end..num_triples {
             let a = self.a_values[i];
             let b = self.b_values[i];
             let c = self.c_values[i];
@@ -160,7 +196,7 @@ mod test {
         assert_eq!(&triples.b_values[0..5], &[4, 12, 8, 20, 12]);
         assert_eq!(&triples.c_values[0..5], &[5, 13, 17, 29, 37]);
 
-        for i in 0..100 {
+        for i in 0..triples.len() {
             let a = triples.a_values[i];
             let b = triples.b_values[i];
             let c = triples.c_values[i];
@@ -181,9 +217,9 @@ mod test {
         triples.product((3, 4, 5), &mut output);
         assert_eq!(output.len(), 203);
 
-        assert_eq!(&output.a_values[0..8], &[3, 5, 15, 7, 25, 33, 63, 13]);
-        assert_eq!(&output.b_values[0..8], &[4, 12, 8, 24, 0, 56, 16, 84]);
-        assert_eq!(&output.c_values[0..8], &[5, 13, 17, 25, 25, 65, 65, 85]);
+        assert_eq!(&output.a_values[0..8], &[3, 5, 15, 7, 33, 13, 17, 57]);
+        assert_eq!(&output.b_values[0..8], &[4, 12, 8, 24, 56, 84, 144, 176]);
+        assert_eq!(&output.c_values[0..8], &[5, 13, 17, 25, 65, 85, 145, 185]);
 
         for i in 0..output.len() {
             let a = output.a_values[i];
