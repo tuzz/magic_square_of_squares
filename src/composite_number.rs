@@ -41,6 +41,20 @@ impl CompositeNumber {
         composite_number
     }
 
+    fn for_each_in_search_range<F: Fn(usize, &mut Vec<u64>, &mut Vec<u64>, u64) + Send + Sync>(&mut self, callback: F) {
+        loop {
+            if crate::PRINT_FACTORS {
+                self.non_final_terms.iter().for_each(|t| print!("{} x ", t.current_triple.2));
+                let first_prime = self.pythagorean_triples.c_values[self.final_term_start_index];
+                let last_prime = self.pythagorean_triples.c_values[self.final_term_end_index - 1];
+                println!("pythagorean_primes({:?})", first_prime..=last_prime);
+            }
+
+            self.for_each_final_term(&callback);
+            if !self.next_available_term() { break; }
+        }
+    }
+
     fn next_available_term(&mut self) -> bool {
         (0..self.non_final_terms.len()).rev().any(|i| self.next_non_final_term(i))
     }
@@ -355,7 +369,7 @@ mod test {
     }
 
     #[test]
-    fn it_can_enumerate_all_final_terms_within_the_range_and_yield_magic_triples() {
+    fn it_can_enumerate_all_final_terms_in_the_search_range_and_yield_magic_triples() {
         let pythagorean_triples = PythagoreanTriples::new(100);
         let mut composite_number = CompositeNumber::new(2..=3, 0..150, pythagorean_triples);
         assert_eq!(composite_number.non_final_factors(), &[1, 5]);
@@ -374,5 +388,29 @@ mod test {
         assert_eq!(callbacks[1], (2, vec![85, 91, 79, 89],     vec![35, 13, 47, 23],  65));
         assert_eq!(callbacks[2], (2, vec![115, 119, 97, 113],  vec![35, 17, 71, 41],  85));
         assert_eq!(callbacks[3], (2, vec![203, 205, 161, 167], vec![29, 5, 127, 119], 145));
+    }
+
+    #[test]
+    fn it_can_enumerate_all_composite_numbers_in_the_search_range_and_yield_magic_triples() {
+        let pythagorean_triples = PythagoreanTriples::new(100);
+        let mut composite_number = CompositeNumber::new(2..=3, 0..150, pythagorean_triples);
+
+        let callbacks = Mutex::new(vec![]);
+        composite_number.for_each_in_search_range(|primitive_start, a_values, b_values, c| {
+            callbacks.lock().unwrap().push((primitive_start, a_values.to_vec(), b_values.to_vec(), c))
+        });
+
+        let mut callbacks = callbacks.into_inner().unwrap();
+        callbacks.sort_by_key(|&(_, _, _, c)| c);
+        assert_eq!(callbacks.len(), 5);
+
+        // These triples are for 1 x 5 x final_term (the same as the test above).
+        assert_eq!(callbacks[0], (2, vec![31, 35],             vec![17, 5],           25));
+        assert_eq!(callbacks[1], (2, vec![85, 91, 79, 89],     vec![35, 13, 47, 23],  65));
+        assert_eq!(callbacks[2], (2, vec![115, 119, 97, 113],  vec![35, 17, 71, 41],  85));
+        assert_eq!(callbacks[4], (2, vec![203, 205, 161, 167], vec![29, 5, 127, 119], 145));
+
+        // These triples are for 5 x 5 x final_term.
+        assert_eq!(callbacks[3], (3, vec![155, 161, 175], vec![85, 73, 25], 125));
     }
 }
