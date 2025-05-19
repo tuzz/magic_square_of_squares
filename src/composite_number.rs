@@ -1,5 +1,6 @@
 use crate::{PythagoreanTriples, TemporaryBuffer};
 use std::ops::{Range, RangeInclusive};
+use std::cell::RefCell;
 
 pub struct CompositeNumber {
     non_final_terms: Box<[NonFinalTerm]>,
@@ -37,11 +38,11 @@ impl CompositeNumber {
         composite_number
     }
 
-    pub fn next_available_term(&mut self) -> bool {
+    fn next_available_term(&mut self) -> bool {
         (0..self.non_final_terms.len()).rev().any(|i| self.next_non_final_term(i))
     }
 
-    pub fn next_non_final_term(&mut self, term_index: usize) -> bool {
+    fn next_non_final_term(&mut self, term_index: usize) -> bool {
         let num_terms = self.non_final_terms.len() + 1;
         let max_value = self.search_range.end - 1;
 
@@ -64,7 +65,7 @@ impl CompositeNumber {
 
             current_term.current_triple = (a, b, c, f);
             current_term.cumulative_product = product;
-            current_term.update_triples_powerset(previous_powerset);
+            Self::update_triples_powerset(&mut current_term.triples_powerset, current_term.current_triple, previous_powerset);
             current_term.triples_powerset.sort_and_dedup_by_c_and_a(&mut self.temporary_buffer);
             current_term.next_index += 1;
             let next_index = current_term.next_index;
@@ -78,7 +79,7 @@ impl CompositeNumber {
 
                 next_term.current_triple = (a, b, c, f);
                 next_term.cumulative_product = product;
-                next_term.update_triples_powerset(previous_powerset);
+                Self::update_triples_powerset(&mut next_term.triples_powerset, next_term.current_triple, previous_powerset);
                 next_term.triples_powerset.sort_and_dedup_by_c_and_a(&mut self.temporary_buffer);
                 next_term.next_index = next_index;
                 next_term.end_index = self.pythagorean_triples.c_values.partition_point(|&c| c <= next_max);
@@ -90,11 +91,37 @@ impl CompositeNumber {
 
             self.final_term_end_index = self.pythagorean_triples.c_values.partition_point(|&c| c <= next_max);
             self.final_term_start_index = self.pythagorean_triples.c_values[..self.final_term_end_index].partition_point(|&c| c < next_min);
-            self.non_final_terms.last_mut().unwrap().triples_powerset.remove_trivial(&mut self.temporary_buffer);
 
             true
         } else {
             false
+        }
+    }
+
+    fn for_each_final_term<F: Fn(usize, &mut Vec<u64>, &mut Vec<u64>, u64)>(&mut self, callback: F) {
+        let previous_term = self.non_final_terms.last().unwrap();
+        let (previous_product, previous_c, previous_f) = (previous_term.cumulative_product, previous_term.current_triple.2, previous_term.current_triple.3);
+
+        thread_local! {
+            static STATE: RefCell<(PythagoreanTriples, TemporaryBuffer)> = RefCell::new((PythagoreanTriples::new(0), TemporaryBuffer::default()));
+        }
+
+        for i in self.final_term_start_index..self.final_term_end_index {
+            let a = self.pythagorean_triples.a_values[i];
+            let b = self.pythagorean_triples.b_values[i];
+            let c = self.pythagorean_triples.c_values[i];
+            let f = if c == previous_c { previous_f } else { previous_f + 1 };
+
+            let final_product = previous_product * c;
+
+            STATE.with_borrow_mut(|(current_powerset, temporary_buffer)| {
+                Self::update_triples_powerset(current_powerset, (a, b, c, f), Some(&previous_term.triples_powerset));
+                current_powerset.remove_trivial(temporary_buffer);
+                current_powerset.into_magic_triples(final_product);
+                current_powerset.sort_and_dedup_by_primitive_and_a(temporary_buffer);
+
+                callback(current_powerset.primitive_start(), &mut current_powerset.a_values, &mut current_powerset.b_values, final_product);
+            });
         }
     }
 
@@ -106,6 +133,16 @@ impl CompositeNumber {
             1 => remaining_multiple,
             2 => remaining_multiple.isqrt(),
             _ => (remaining_multiple as f64).powf(1. / remaining_terms as f64).floor() as u64,
+        }
+    }
+
+    fn update_triples_powerset(current_powerset: &mut PythagoreanTriples, current_triple: (u64, u64, u64, u32), previous_powerset: Option<&PythagoreanTriples>) {
+        current_powerset.clear();
+        current_powerset.push(current_triple);
+
+        if let Some(previous_powerset) = previous_powerset {
+            current_powerset.extend(previous_powerset);
+            previous_powerset.product(current_triple, current_powerset);
         }
     }
 
@@ -129,21 +166,12 @@ impl NonFinalTerm {
             end_index: usize::MAX,
         }
     }
-
-    pub fn update_triples_powerset(&mut self, previous_powerset: Option<&PythagoreanTriples>) {
-        self.triples_powerset.clear();
-        self.triples_powerset.push(self.current_triple);
-
-        if let Some(previous_powerset) = previous_powerset {
-            self.triples_powerset.extend(previous_powerset);
-            previous_powerset.product(self.current_triple, &mut self.triples_powerset);
-        }
-    }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
+    use std::sync::Mutex;
 
     #[test]
     fn it_can_advance_through_each_non_final_term_ensuring_lexical_ordering() {
@@ -265,9 +293,9 @@ mod test {
         assert_eq!(composite_number.non_final_terms[0].triples_powerset.b_values, &[4]);
         assert_eq!(composite_number.non_final_terms[0].triples_powerset.c_values, &[5]);
 
-        assert_eq!(composite_number.non_final_terms[1].triples_powerset.a_values, &[3, 7]);
-        assert_eq!(composite_number.non_final_terms[1].triples_powerset.b_values, &[4, 24]);
-        assert_eq!(composite_number.non_final_terms[1].triples_powerset.c_values, &[5, 25]);
+        assert_eq!(composite_number.non_final_terms[1].triples_powerset.a_values, &[3, 7, 25]);
+        assert_eq!(composite_number.non_final_terms[1].triples_powerset.b_values, &[4, 24, 0]);
+        assert_eq!(composite_number.non_final_terms[1].triples_powerset.c_values, &[5, 25, 25]);
 
         composite_number.next_non_final_term(1);
         assert_eq!(composite_number.non_final_factors(), &[5, 13]); // Distinct factors.
@@ -314,5 +342,27 @@ mod test {
         assert!(!composite_number.next_available_term());
         assert_eq!(composite_number.non_final_factors(), &[5, 5, 5]);
         assert_eq!(composite_number.final_factors(), &[5]);
+    }
+
+    #[test]
+    fn it_can_enumerate_all_final_terms_within_the_range_and_yield_magic_triples() {
+        let pythagorean_triples = PythagoreanTriples::new(100);
+        let mut composite_number = CompositeNumber::new(2..=3, 0..150, pythagorean_triples);
+        assert_eq!(composite_number.non_final_factors(), &[1, 5]);
+
+        let callbacks = Mutex::new(vec![]);
+        composite_number.for_each_final_term(|primitive_start, a_values, b_values, c| {
+            callbacks.lock().unwrap().push((primitive_start, a_values.to_vec(), b_values.to_vec(), c))
+        });
+
+        let mut callbacks = callbacks.into_inner().unwrap();
+        callbacks.sort_by_key(|&(_, _, _, c)| c);
+        assert_eq!(callbacks.len(), 4);
+
+                                       // a_values                  b_values          c
+        assert_eq!(callbacks[0], (2, vec![31, 35],             vec![17, 5],           25));
+        assert_eq!(callbacks[1], (2, vec![85, 91, 79, 89],     vec![35, 13, 47, 23],  65));
+        assert_eq!(callbacks[2], (2, vec![115, 119, 97, 113],  vec![35, 17, 71, 41],  85));
+        assert_eq!(callbacks[3], (2, vec![203, 205, 161, 167], vec![29, 5, 127, 119], 145));
     }
 }
