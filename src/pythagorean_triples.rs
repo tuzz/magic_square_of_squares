@@ -69,6 +69,12 @@ impl PythagoreanTriples {
         self.c_values.push(c);
     }
 
+    pub fn extend(&mut self, other: &Self) {
+          self.a_values.extend_from_slice(&other.a_values);
+          self.b_values.extend_from_slice(&other.b_values);
+          self.c_values.extend_from_slice(&other.c_values);
+      }
+
     // Apply the Brahmagupta–Fibonacci identity to combine two Pythagorean triples
     // into two new primitive Pythagorean triples for the product of hypotenuses.
     pub fn product(&self, (x, y, z): (u64, u64, u64), output: &mut Self) {
@@ -165,6 +171,30 @@ impl PythagoreanTriples {
 
     pub fn sort_and_dedup_by_c_and_a(&mut self, buffer: &mut TemporaryBuffer) {
         self.sort_and_dedup(buffer, |triples, i| (triples.c_values[i], triples.a_values[i]));
+    }
+
+    pub fn into_magic_triples(&mut self, final_product: u64) {
+        let scale_end = self.c_values.partition_point(|&c| c != final_product);
+
+        for i in 0..scale_end {
+            let a = self.a_values[i];
+            let b = self.b_values[i];
+            let c = self.c_values[i];
+            let scale = final_product / c;
+
+            self.a_values[i] = scale * (a + b);
+            self.b_values[i] = scale * a.abs_diff(b);
+            self.c_values[i] = final_product;
+        }
+
+        for i in scale_end..self.len() {
+            let a = self.a_values[i];
+            let b = self.b_values[i];
+
+            self.a_values[i] = a + b;
+            self.b_values[i] = a.abs_diff(b);
+            self.c_values[i] = final_product;
+        }
     }
 
     // Use Cornacchia's algorithm to solve a^2 + b^2 = p then apply Euclid's
@@ -311,5 +341,48 @@ mod test {
         assert_eq!(&triples.a_values, &[3, 5]);
         assert_eq!(&triples.b_values, &[4, 12]);
         assert_eq!(&triples.c_values, &[5, 13]);
+    }
+
+    #[test]
+    fn it_can_convert_pythagorean_triples_into_magic_triples() {
+        let mut triples0 = PythagoreanTriples::with_capacity(4);
+        let mut triples1 = PythagoreanTriples::with_capacity(4);
+        let mut triples2 = PythagoreanTriples::with_capacity(4);
+        let mut buffer = TemporaryBuffer::default();
+
+        triples0.push((3, 4, 5));
+
+        triples1.push((5, 12, 13));
+        triples1.extend(&triples0);
+        triples0.product((5, 12, 13), &mut triples1);
+        triples1.sort_and_dedup_by_c_and_a(&mut buffer);
+
+        triples2.push((5, 12, 13));
+        triples2.extend(&triples1);
+        triples1.product((5, 12, 13), &mut triples2);
+        triples2.sort_and_dedup_by_c_and_a(&mut buffer);
+
+        // Do this once at the end since trivial triples might generate
+        // non-trivial triples in later products.
+        triples2.remove_trivial(&mut buffer);
+
+        assert_eq!(&triples2.a_values, &[3, 5, 33, 63, 119, 123, 507, 837]);
+        assert_eq!(&triples2.b_values, &[4, 12, 56, 16, 120, 836, 676, 116]);
+        assert_eq!(&triples2.c_values, &[5, 13, 65, 65, 169, 845, 845, 845]);
+
+        let final_product = 5 * 13 * 13;
+        triples2.into_magic_triples(final_product);
+
+        assert_eq!(&triples2.a_values, &[1183, 1105, 1157, 1027, 1195, 959, 1183, 953]);
+        assert_eq!(&triples2.b_values, &[169, 455, 299, 611, 5, 713, 169, 721]);
+        assert_eq!(&triples2.c_values, &[845, 845, 845, 845, 845, 845, 845, 845]);
+
+        // Note that scaling reintroduces duplicates: (1183, 169, 845)
+
+        for i in 0..triples2.len() {
+            let a = triples2.a_values[i];
+            let b = triples2.b_values[i];
+            assert_eq!(a * a + b * b, 2 * final_product * final_product);
+        }
     }
 }
