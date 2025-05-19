@@ -36,7 +36,7 @@ pub fn detect_magic_hourglass<F: Fn(u128, u128, u128, u128)>(primitive_start: us
             for (j, &square2) in squares[squares_primitive_start..squares_primitive_start + upto_index2].iter().enumerate() {
                 let target = remainder - square2;
 
-                if squares[j + 1..i].binary_search(&target).is_ok() {
+                if squares[squares_primitive_start + j + 1..squares_primitive_start + i].binary_search(&target).is_ok() {
                     callback(square1, square2, target, magic_sum);
                 }
             }
