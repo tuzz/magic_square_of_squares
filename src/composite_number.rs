@@ -4,6 +4,7 @@ use std::ops::{Range, RangeInclusive};
 use std::cell::RefCell;
 
 pub struct CompositeNumber {
+    num_factors: RangeInclusive<usize>,
     non_final_terms: Box<[NonFinalTerm]>,
     final_term_start_index: usize,
     final_term_end_index: usize,
@@ -28,7 +29,8 @@ impl CompositeNumber {
         assert!(min_factors >= 2);
 
         let mut composite_number = Self {
-            non_final_terms: (0..max_factors - 1).map(NonFinalTerm::new).collect(),
+            num_factors,
+            non_final_terms: (0..max_factors - 1).map(|_| NonFinalTerm::new(pythagorean_triples.len())).collect(),
             final_term_start_index: 0,
             final_term_end_index: 0,
             search_range: start_range,
@@ -41,13 +43,32 @@ impl CompositeNumber {
         composite_number
     }
 
+    pub fn for_each(&mut self, callback: impl Fn(usize, &mut Vec<u64>, &mut Vec<u64>, u64) + Send + Sync) {
+        loop {
+            println!("Searching composite numbers with {:?} prime factors in the range {:?}.", self.num_factors, self.search_range);
+            self.for_each_in_search_range(&callback);
+
+            self.search_range.start = self.search_range.end;
+            self.search_range.end *= 2;
+
+            self.non_final_terms.iter_mut().for_each(|t| t.reset(self.pythagorean_triples.len()));
+            self.next_non_final_term(self.num_factors.end() - self.num_factors.start());
+
+            self.final_term_start_index = 0;
+            self.final_term_end_index = 0;
+        }
+    }
+
     fn for_each_in_search_range<F: Fn(usize, &mut Vec<u64>, &mut Vec<u64>, u64) + Send + Sync>(&mut self, callback: F) {
         loop {
             if crate::PRINT_FACTORS {
-                self.non_final_terms.iter().for_each(|t| print!("{} x ", t.current_triple.2));
-                let first_prime = self.pythagorean_triples.c_values[self.final_term_start_index];
-                let last_prime = self.pythagorean_triples.c_values[self.final_term_end_index - 1];
-                println!("pythagorean_primes({:?})", first_prime..=last_prime);
+                let first_prime = self.pythagorean_triples.c_values.get(self.final_term_start_index);
+                let last_prime = self.pythagorean_triples.c_values.get(self.final_term_end_index - 1);
+
+                if let (Some(first_prime), Some(last_prime)) = (first_prime, last_prime) {
+                    self.non_final_terms.iter().for_each(|t| print!("{} x ", t.current_triple.2));
+                    println!("pythagorean_primes({:?})", first_prime..=last_prime);
+                }
             }
 
             self.for_each_final_term(&callback);
@@ -181,14 +202,22 @@ impl CompositeNumber {
 }
 
 impl NonFinalTerm {
-    fn new(_term_index: usize) -> Self {
+    fn new(num_triples: usize) -> Self {
         Self {
             current_triple: (0, 0, 1, 0),
             cumulative_product: 1,
             triples_powerset: PythagoreanTriples::new(0),
             next_index: 0,
-            end_index: usize::MAX,
+            end_index: num_triples,
         }
+    }
+
+    pub fn reset(&mut self, num_triples: usize) {
+        self.current_triple = (0, 0, 1, 0);
+        self.cumulative_product = 1;
+        self.triples_powerset.clear();
+        self.next_index = 0;
+        self.end_index = num_triples;
     }
 }
 
