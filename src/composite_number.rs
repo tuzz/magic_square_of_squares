@@ -3,6 +3,8 @@ use std::ops::{Range, RangeInclusive};
 
 pub struct CompositeNumber {
     non_final_terms: Box<[NonFinalTerm]>,
+    final_term_start_index: usize,
+    final_term_end_index: usize,
     search_range: Range<u64>,
     pythagorean_triples: PythagoreanTriples,
 }
@@ -22,12 +24,18 @@ impl CompositeNumber {
 
         let mut composite_number = Self {
             non_final_terms: (0..max_factors - 1).map(NonFinalTerm::new).collect(),
+            final_term_start_index: 0,
+            final_term_end_index: 0,
             search_range: start_range,
             pythagorean_triples,
         };
 
         composite_number.next_non_final_term(max_factors - min_factors);
         composite_number
+    }
+
+    pub fn next_available_term(&mut self) -> bool {
+        (0..self.non_final_terms.len()).rev().any(|i| self.next_non_final_term(i))
     }
 
     pub fn next_non_final_term(&mut self, term_index: usize) -> bool {
@@ -69,6 +77,11 @@ impl CompositeNumber {
                 next_max = Self::max_value_for_term(i + 1, num_terms, product, max_value);
             }
 
+            let next_min = c.max(self.search_range.start.div_ceil(product));
+
+            self.final_term_end_index = self.pythagorean_triples.c_values.partition_point(|&c| c <= next_max);
+            self.final_term_start_index = self.pythagorean_triples.c_values[..self.final_term_end_index].partition_point(|&c| c < next_min);
+
             true
         } else {
             false
@@ -87,8 +100,12 @@ impl CompositeNumber {
     }
 
     #[cfg(test)]
-    fn factors(&self) -> Vec<u64> {
+    fn non_final_factors(&self) -> Vec<u64> {
         self.non_final_terms.iter().map(|t| t.current_triple.2).collect()
+    }
+
+    fn final_factors(&self) -> Vec<u64> {
+        self.pythagorean_triples.c_values[self.final_term_start_index..self.final_term_end_index].to_vec()
     }
 }
 
@@ -111,47 +128,47 @@ mod test {
     fn it_can_advance_through_each_non_final_term_ensuring_lexical_ordering() {
         let pythagorean_triples = PythagoreanTriples::new(100);
         let mut composite_number = CompositeNumber::new(2..=3, 0..1000, pythagorean_triples);
-        assert_eq!(composite_number.factors(), &[1, 5]);
+        assert_eq!(composite_number.non_final_factors(), &[1, 5]);
 
         composite_number.next_non_final_term(1);
-        assert_eq!(composite_number.factors(), &[1, 13]);
+        assert_eq!(composite_number.non_final_factors(), &[1, 13]);
 
         composite_number.next_non_final_term(1);
-        assert_eq!(composite_number.factors(), &[1, 17]);
+        assert_eq!(composite_number.non_final_factors(), &[1, 17]);
 
         composite_number.next_non_final_term(0);
-        assert_eq!(composite_number.factors(), &[5, 5]);
+        assert_eq!(composite_number.non_final_factors(), &[5, 5]);
     }
 
     #[test]
     fn it_returns_false_when_the_search_range_has_been_exhausted() {
         let pythagorean_triples = PythagoreanTriples::new(100);
         let mut composite_number = CompositeNumber::new(2..=3, 0..1000, pythagorean_triples);
-        assert_eq!(composite_number.factors(), &[1, 5]);
+        assert_eq!(composite_number.non_final_factors(), &[1, 5]);
         assert!(5 * 5 < 1000);
 
         assert!(composite_number.next_non_final_term(1));
-        assert_eq!(composite_number.factors(), &[1, 13]);
+        assert_eq!(composite_number.non_final_factors(), &[1, 13]);
         assert!(13 * 13 < 1000);
 
         assert!(composite_number.next_non_final_term(1));
-        assert_eq!(composite_number.factors(), &[1, 17]);
+        assert_eq!(composite_number.non_final_factors(), &[1, 17]);
         assert!(17 * 17 < 1000);
 
         assert!(composite_number.next_non_final_term(1));
-        assert_eq!(composite_number.factors(), &[1, 29]);
+        assert_eq!(composite_number.non_final_factors(), &[1, 29]);
         assert!(29 * 29 < 1000);
 
         assert!(!composite_number.next_non_final_term(1));
-        assert_eq!(composite_number.factors(), &[1, 29]);
+        assert_eq!(composite_number.non_final_factors(), &[1, 29]);
         assert!(37 * 37 >= 1000);
 
         assert!(composite_number.next_non_final_term(0));
-        assert_eq!(composite_number.factors(), &[5, 5]);
+        assert_eq!(composite_number.non_final_factors(), &[5, 5]);
         assert!(5 * 5 * 5 < 1000);
 
         assert!(!composite_number.next_non_final_term(0));
-        assert_eq!(composite_number.factors(), &[5, 5]);
+        assert_eq!(composite_number.non_final_factors(), &[5, 5]);
         assert!(13 * 13 * 13 >= 1000);
     }
 
@@ -160,22 +177,22 @@ mod test {
         let pythagorean_triples = PythagoreanTriples::new(100);
         let mut composite_number = CompositeNumber::new(2..=3, 0..1000, pythagorean_triples);
 
-        assert_eq!(composite_number.factors(), &[1, 5]);
+        assert_eq!(composite_number.non_final_factors(), &[1, 5]);
         assert_eq!(composite_number.non_final_terms[0].current_triple, (0, 0, 1, 0));
         assert_eq!(composite_number.non_final_terms[1].current_triple, (3, 4, 5, 1));
 
         composite_number.next_non_final_term(1);
-        assert_eq!(composite_number.factors(), &[1, 13]);
+        assert_eq!(composite_number.non_final_factors(), &[1, 13]);
         assert_eq!(composite_number.non_final_terms[0].current_triple, (0, 0, 1, 0));
         assert_eq!(composite_number.non_final_terms[1].current_triple, (5, 12, 13, 1));
 
         composite_number.next_non_final_term(0);
-        assert_eq!(composite_number.factors(), &[5, 5]);
+        assert_eq!(composite_number.non_final_factors(), &[5, 5]);
         assert_eq!(composite_number.non_final_terms[0].current_triple, (3, 4, 5, 1));
         assert_eq!(composite_number.non_final_terms[1].current_triple, (3, 4, 5, 1));
 
         composite_number.next_non_final_term(1);
-        assert_eq!(composite_number.factors(), &[5, 13]);
+        assert_eq!(composite_number.non_final_factors(), &[5, 13]);
         assert_eq!(composite_number.non_final_terms[0].current_triple, (3, 4, 5, 1));
         assert_eq!(composite_number.non_final_terms[1].current_triple, (5, 12, 13, 2));
     }
@@ -185,23 +202,59 @@ mod test {
         let pythagorean_triples = PythagoreanTriples::new(100);
         let mut composite_number = CompositeNumber::new(2..=3, 0..1000, pythagorean_triples);
 
-        assert_eq!(composite_number.factors(), &[1, 5]);
+        assert_eq!(composite_number.non_final_factors(), &[1, 5]);
         assert_eq!(composite_number.non_final_terms[0].cumulative_product, 1);
         assert_eq!(composite_number.non_final_terms[1].cumulative_product, 5);
 
         composite_number.next_non_final_term(1);
-        assert_eq!(composite_number.factors(), &[1, 13]);
+        assert_eq!(composite_number.non_final_factors(), &[1, 13]);
         assert_eq!(composite_number.non_final_terms[0].cumulative_product, 1);
         assert_eq!(composite_number.non_final_terms[1].cumulative_product, 13);
 
         composite_number.next_non_final_term(0);
-        assert_eq!(composite_number.factors(), &[5, 5]);
+        assert_eq!(composite_number.non_final_factors(), &[5, 5]);
         assert_eq!(composite_number.non_final_terms[0].cumulative_product, 5);
         assert_eq!(composite_number.non_final_terms[1].cumulative_product, 25);
 
         composite_number.next_non_final_term(1);
-        assert_eq!(composite_number.factors(), &[5, 13]);
+        assert_eq!(composite_number.non_final_factors(), &[5, 13]);
         assert_eq!(composite_number.non_final_terms[0].cumulative_product, 5);
         assert_eq!(composite_number.non_final_terms[1].cumulative_product, 65);
+    }
+
+    #[test]
+    fn it_can_fully_exhaust_the_search_range() {
+        let pythagorean_triples = PythagoreanTriples::new(100);
+        let mut composite_number = CompositeNumber::new(2..=4, 485..1000, pythagorean_triples);
+        assert_eq!(composite_number.non_final_factors(), &[1, 1, 5]);
+        assert_eq!(composite_number.final_factors(), &[97, 101, 109, 113, 137, 149, 157, 173, 181, 193, 197]);
+
+        assert!(composite_number.next_available_term());
+        assert_eq!(composite_number.non_final_factors(), &[1, 1, 13]);
+        assert_eq!(composite_number.final_factors(), &[41, 53, 61, 73]);
+
+        assert!(composite_number.next_available_term());
+        assert_eq!(composite_number.non_final_factors(), &[1, 1, 17]);
+        assert_eq!(composite_number.final_factors(), &[29, 37, 41, 53]);
+
+        assert!(composite_number.next_available_term());
+        assert_eq!(composite_number.non_final_factors(), &[1, 1, 29]);
+        assert_eq!(composite_number.final_factors(), &[29]);
+
+        assert!(composite_number.next_available_term());
+        assert_eq!(composite_number.non_final_factors(), &[1, 5, 5]);
+        assert_eq!(composite_number.final_factors(), &[29, 37]);
+
+        assert!(composite_number.next_available_term());
+        assert_eq!(composite_number.non_final_factors(), &[1, 5, 13]);
+        assert_eq!(composite_number.final_factors(), &[13]);
+
+        assert!(composite_number.next_available_term());
+        assert_eq!(composite_number.non_final_factors(), &[5, 5, 5]);
+        assert_eq!(composite_number.final_factors(), &[5]);
+
+        assert!(!composite_number.next_available_term());
+        assert_eq!(composite_number.non_final_factors(), &[5, 5, 5]);
+        assert_eq!(composite_number.final_factors(), &[5]);
     }
 }
