@@ -12,7 +12,7 @@ pub struct PythagoreanTriples {
 }
 
 #[derive(Default)]
-struct TemporaryBuffer {
+pub struct TemporaryBuffer {
     ascending: Vec<usize>,
     indexes: Vec<usize>,
     values: Vec<u64>,
@@ -55,6 +55,13 @@ impl PythagoreanTriples {
 
     pub fn len(&self) -> usize {
         self.a_values.len()
+    }
+
+    pub fn clear(&mut self) {
+        self.a_values.clear();
+        self.b_values.clear();
+        self.c_values.clear();
+        self.factors.clear();
     }
 
     pub fn resize(&mut self, new_len: usize, value: u64) {
