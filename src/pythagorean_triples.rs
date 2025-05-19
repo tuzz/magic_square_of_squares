@@ -28,6 +28,8 @@ const ZERO_VECTOR: SimdU32 = SimdU32::splat(0);
 
 impl PythagoreanTriples {
     pub fn new(num_primes: usize) -> Self {
+        if num_primes != 0 { println!("Computing the first {num_primes} primitive Pythagorean triples."); }
+
         let mut a_values = Vec::with_capacity(num_primes);
         let mut b_values = Vec::with_capacity(num_primes);
         let mut c_values = Vec::with_capacity(num_primes);
