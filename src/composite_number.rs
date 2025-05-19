@@ -1,3 +1,4 @@
+use rayon::prelude::*;
 use crate::{PythagoreanTriples, TemporaryBuffer};
 use std::ops::{Range, RangeInclusive};
 use std::cell::RefCell;
@@ -9,6 +10,7 @@ pub struct CompositeNumber {
     search_range: Range<u64>,
     pythagorean_triples: PythagoreanTriples,
     temporary_buffer: TemporaryBuffer,
+    triples_buffer: Vec<(u64, u64, u64)>,
 }
 
 struct NonFinalTerm {
@@ -32,6 +34,7 @@ impl CompositeNumber {
             search_range: start_range,
             pythagorean_triples,
             temporary_buffer: TemporaryBuffer::default(),
+            triples_buffer: Vec::with_capacity(1_000_000),
         };
 
         composite_number.next_non_final_term(max_factors - min_factors);
@@ -98,29 +101,36 @@ impl CompositeNumber {
         }
     }
 
-    fn for_each_final_term<F: Fn(usize, &mut Vec<u64>, &mut Vec<u64>, u64)>(&mut self, callback: F) {
+    fn for_each_final_term<F: Fn(usize, &mut Vec<u64>, &mut Vec<u64>, u64) + Send + Sync>(&mut self, callback: F) {
         let previous_term = self.non_final_terms.last().unwrap();
         let (previous_product, previous_c, previous_f) = (previous_term.cumulative_product, previous_term.current_triple.2, previous_term.current_triple.3);
+
+        let a_values = &self.pythagorean_triples.a_values[self.final_term_start_index..self.final_term_end_index];
+        let b_values = &self.pythagorean_triples.b_values[self.final_term_start_index..self.final_term_end_index];
+        let c_values = &self.pythagorean_triples.c_values[self.final_term_start_index..self.final_term_end_index];
+        let mut triples = a_values.iter().zip(b_values).zip(c_values).map(|((a, b), c)| (*a, *b, *c));
 
         thread_local! {
             static STATE: RefCell<(PythagoreanTriples, TemporaryBuffer)> = RefCell::new((PythagoreanTriples::new(0), TemporaryBuffer::default()));
         }
 
-        for i in self.final_term_start_index..self.final_term_end_index {
-            let a = self.pythagorean_triples.a_values[i];
-            let b = self.pythagorean_triples.b_values[i];
-            let c = self.pythagorean_triples.c_values[i];
-            let f = if c == previous_c { previous_f } else { previous_f + 1 };
+        loop {
+            self.triples_buffer.clear();
+            self.triples_buffer.extend(triples.by_ref().take(self.triples_buffer.capacity()));
+            if self.triples_buffer.is_empty() { break; }
 
-            let final_product = previous_product * c;
+            self.triples_buffer.par_iter().for_each(|&(a, b, c)| {
+                let f = if c == previous_c { previous_f } else { previous_f + 1 };
+                let final_product = previous_product * c;
 
-            STATE.with_borrow_mut(|(current_powerset, temporary_buffer)| {
-                Self::update_triples_powerset(current_powerset, (a, b, c, f), Some(&previous_term.triples_powerset));
-                current_powerset.remove_trivial(temporary_buffer);
-                current_powerset.into_magic_triples(final_product);
-                current_powerset.sort_and_dedup_by_primitive_and_a(temporary_buffer);
+                STATE.with_borrow_mut(|(current_powerset, temporary_buffer)| {
+                    Self::update_triples_powerset(current_powerset, (a, b, c, f), Some(&previous_term.triples_powerset));
+                    current_powerset.remove_trivial(temporary_buffer);
+                    current_powerset.into_magic_triples(final_product);
+                    current_powerset.sort_and_dedup_by_primitive_and_a(temporary_buffer);
 
-                callback(current_powerset.primitive_start(), &mut current_powerset.a_values, &mut current_powerset.b_values, final_product);
+                    callback(current_powerset.primitive_start(), &mut current_powerset.a_values, &mut current_powerset.b_values, final_product);
+                });
             });
         }
     }
