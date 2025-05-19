@@ -14,7 +14,7 @@ const SIMD_LANES: usize = 64;
 fn main() {
     let pythagorean_triples = PythagoreanTriples::new(1_000_000);
 
-    CompositeNumber::new(2..=20, 0..1_000_000_000, pythagorean_triples).for_each(|primitive_start, a_values, b_values, c| {
+    CompositeNumber::new(2..=20, 0..100_000_000_000, pythagorean_triples).for_each(|primitive_start, a_values, b_values, c| {
         detect_magic_hourglass(primitive_start, a_values, b_values, c, |square1, square2, square3, magic_sum| {
              println!("EUREKA! {square1} + {square2} + {square3} = {magic_sum}")
         });
