@@ -33,12 +33,12 @@ impl PythagoreanTriples {
         let mut c_values = Vec::with_capacity(num_primes);
 
         let mut primes = primal::Primes::all().filter(|p| p % 4 == 1).take(num_primes);
-        let mut chunk = Vec::with_capacity(1_000_000);
-        let mut tuples = Vec::with_capacity(1_000_000);
+        let mut chunk = Vec::with_capacity(10_000);
+        let mut tuples = Vec::with_capacity(10_000);
 
         loop {
             chunk.clear();
-            chunk.extend(primes.by_ref().map(|p| p as u64).take(1_000_000));
+            chunk.extend(primes.by_ref().map(|p| p as u64).take(chunk.capacity()));
             if chunk.is_empty() { break; }
 
             tuples.par_extend(chunk.par_iter().map(|&p| (Self::compute(p), p)));

@@ -36,7 +36,7 @@ impl CompositeNumber {
             search_range: start_range,
             pythagorean_triples,
             temporary_buffer: TemporaryBuffer::default(),
-            triples_buffer: Vec::with_capacity(1_000_000),
+            triples_buffer: Vec::with_capacity(10_000),
         };
 
         composite_number.next_non_final_term(max_factors - min_factors);
