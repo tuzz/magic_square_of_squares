@@ -5,10 +5,10 @@ use std::simd::num::SimdUint;
 use std::simd::cmp::SimdPartialEq;
 
 pub struct PythagoreanTriples {
-    a_values: Vec<u64>,
-    b_values: Vec<u64>,
-    c_values: Vec<u64>,
-    factors: Vec<u32>,
+    pub a_values: Vec<u64>,
+    pub b_values: Vec<u64>,
+    pub c_values: Vec<u64>,
+    pub factors: Vec<u32>,
 }
 
 #[derive(Default)]
@@ -81,11 +81,11 @@ impl PythagoreanTriples {
     }
 
     pub fn extend(&mut self, other: &Self) {
-          self.a_values.extend_from_slice(&other.a_values);
-          self.b_values.extend_from_slice(&other.b_values);
-          self.c_values.extend_from_slice(&other.c_values);
-          self.factors.extend_from_slice(&other.factors);
-      }
+        self.a_values.extend_from_slice(&other.a_values);
+        self.b_values.extend_from_slice(&other.b_values);
+        self.c_values.extend_from_slice(&other.c_values);
+        self.factors.extend_from_slice(&other.factors);
+    }
 
     // Apply the Brahmagupta–Fibonacci identity to combine two Pythagorean triples
     // into two new primitive Pythagorean triples for the product of hypotenuses.
@@ -356,11 +356,11 @@ mod test {
         triples.factors.resize(203, 0);
 
         // Existing triples in output should be preserved.
-        output.push((3, 4, 5, 0));
-        output.push((5, 12, 13, 1));
-        output.push((15, 8, 17, 2));
+        output.push((3, 4, 5, 1));
+        output.push((5, 12, 13, 2));
+        output.push((15, 8, 17, 3));
 
-        triples.product((3, 4, 5, 0), &mut output);
+        triples.product((3, 4, 5, 1), &mut output);
         assert_eq!(output.len(), 203);
 
         assert_eq!(&output.a_values[0..8], &[3, 5, 15, 7, 33, 13, 17, 57]);
@@ -383,7 +383,7 @@ mod test {
         // Stub factors for this test.
         triples.factors.resize(2, 0);
 
-        triples.product((3, 4, 5, 0), &mut output);
+        triples.product((3, 4, 5, 1), &mut output);
         assert_eq!(output.len(), 2);
 
         assert_eq!(&output.a_values, &[7, 25]);
@@ -398,7 +398,7 @@ mod test {
         triples.a_values.extend_from_slice(&[3, 5, 5, 13, 0]);
         triples.b_values.extend_from_slice(&[4, 0, 12, 0, 0]);
         triples.c_values.extend_from_slice(&[5, 5, 13, 13, 0]);
-        triples.factors.extend_from_slice(&[0, 0, 1, 1, 2]);
+        triples.factors.extend_from_slice(&[1, 0, 2, 2, 0]);
 
         triples.remove_trivial(&mut buffer);
         assert_eq!(&triples.a_values, &[3, 5]);
@@ -414,13 +414,13 @@ mod test {
         triples.a_values.extend_from_slice(&[3, 5, 3, 5, 3]);
         triples.b_values.extend_from_slice(&[4, 12, 4, 12, 4]);
         triples.c_values.extend_from_slice(&[5, 13, 5, 13, 5]);
-        triples.factors.extend_from_slice(&[0, 1, 0, 1, 0]);
+        triples.factors.extend_from_slice(&[1, 2, 1, 2, 1]);
 
         triples.sort_and_dedup_by_c_and_a(&mut buffer);
         assert_eq!(&triples.a_values, &[3, 5]);
         assert_eq!(&triples.b_values, &[4, 12]);
         assert_eq!(&triples.c_values, &[5, 13]);
-        assert_eq!(&triples.factors, &[0, 1]);
+        assert_eq!(&triples.factors, &[1, 2]);
     }
 
     #[test]
@@ -430,16 +430,16 @@ mod test {
         let mut triples2 = PythagoreanTriples::with_capacity(4);
         let mut buffer = TemporaryBuffer::default();
 
-        triples0.push((3, 4, 5, 0));
+        triples0.push((3, 4, 5, 1));
 
-        triples1.push((5, 12, 13, 1));
+        triples1.push((5, 12, 13, 2));
         triples1.extend(&triples0);
-        triples0.product((5, 12, 13, 1), &mut triples1);
+        triples0.product((5, 12, 13, 2), &mut triples1);
         triples1.sort_and_dedup_by_c_and_a(&mut buffer);
 
-        triples2.push((5, 12, 13, 1));
+        triples2.push((5, 12, 13, 2));
         triples2.extend(&triples1);
-        triples1.product((5, 12, 13, 1), &mut triples2);
+        triples1.product((5, 12, 13, 2), &mut triples2);
         triples2.sort_and_dedup_by_c_and_a(&mut buffer);
 
         // Do this once at the end since trivial triples might generate
@@ -471,11 +471,11 @@ mod test {
         let mut triples1 = PythagoreanTriples::with_capacity(2);
         let mut buffer = TemporaryBuffer::default();
 
-        triples0.push((3, 4, 5, 0));
+        triples0.push((3, 4, 5, 1));
 
-        triples1.push((5, 12, 13, 1));
+        triples1.push((5, 12, 13, 2));
         triples1.extend(&triples0);
-        triples0.product((5, 12, 13, 1), &mut triples1);
+        triples0.product((5, 12, 13, 2), &mut triples1);
         triples1.sort_and_dedup_by_c_and_a(&mut buffer);
         triples1.remove_trivial(&mut buffer);
 
@@ -485,7 +485,7 @@ mod test {
 
         assert_eq!(&triples1.a_values, &[85, 91, 79, 89]);
         assert_eq!(&triples1.b_values, &[35, 13, 47, 23]);
-        assert_eq!(&triples1.factors, &[TOP_BIT, TOP_BIT, 1, 1]);
+        assert_eq!(&triples1.factors, &[TOP_BIT, TOP_BIT, 0b11, 0b11]);
         assert_eq!(triples1.primitive_start(), 2);
     }
 }

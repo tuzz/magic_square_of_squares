@@ -1,0 +1,207 @@
+use crate::PythagoreanTriples;
+use std::ops::{Range, RangeInclusive};
+
+pub struct CompositeNumber {
+    non_final_terms: Box<[NonFinalTerm]>,
+    search_range: Range<u64>,
+    pythagorean_triples: PythagoreanTriples,
+}
+
+struct NonFinalTerm {
+    current_triple: (u64, u64, u64, u32),
+    cumulative_product: u64,
+    next_index: usize,
+    end_index: usize,
+}
+
+impl CompositeNumber {
+    pub fn new(num_factors: RangeInclusive<usize>, start_range: Range<u64>, pythagorean_triples: PythagoreanTriples) -> Self {
+        let min_factors = *num_factors.start();
+        let max_factors = *num_factors.end();
+        assert!(min_factors >= 2);
+
+        let mut composite_number = Self {
+            non_final_terms: (0..max_factors - 1).map(NonFinalTerm::new).collect(),
+            search_range: start_range,
+            pythagorean_triples,
+        };
+
+        composite_number.next_non_final_term(max_factors - min_factors);
+        composite_number
+    }
+
+    pub fn next_non_final_term(&mut self, term_index: usize) -> bool {
+        let num_terms = self.non_final_terms.len() + 1;
+        let max_value = self.search_range.end - 1;
+
+        let (previous_terms, next_terms) = self.non_final_terms.split_at_mut(term_index);
+        let previous_term = previous_terms.last();
+        let (previous_product, previous_c, previous_f) = previous_term.map(|t| (t.cumulative_product, t.current_triple.2, t.current_triple.3)).unwrap_or((1, 1, 0));
+        let current_term = next_terms.first_mut().unwrap();
+
+        if current_term.next_index < current_term.end_index {
+            let c = self.pythagorean_triples.c_values[current_term.next_index];
+            let mut product = previous_product * c;
+
+            let mut next_max = Self::max_value_for_term(term_index + 1, num_terms, product, max_value);
+            if next_max < c { return false; }
+
+            let a = self.pythagorean_triples.a_values[current_term.next_index];
+            let b = self.pythagorean_triples.b_values[current_term.next_index];
+            let f = if c == previous_c { previous_f } else { previous_f + 1 };
+
+            current_term.current_triple = (a, b, c, f);
+            current_term.cumulative_product = product;
+            current_term.next_index += 1;
+            let next_index = current_term.next_index;
+
+            for i in term_index + 1..self.non_final_terms.len() {
+                let (previous_terms, next_terms) = self.non_final_terms.split_at_mut(i);
+                let next_term = next_terms.first_mut().unwrap();
+
+                product *= c;
+
+                next_term.current_triple = (a, b, c, f);
+                next_term.cumulative_product = product;
+                next_term.next_index = next_index;
+                next_term.end_index = self.pythagorean_triples.c_values.partition_point(|&c| c <= next_max);
+
+                next_max = Self::max_value_for_term(i + 1, num_terms, product, max_value);
+            }
+
+            true
+        } else {
+            false
+        }
+    }
+
+    fn max_value_for_term(term_index: usize, num_terms: usize, previous_product: u64, max_value: u64) -> u64 {
+        let remaining_multiple = max_value / previous_product;
+        let remaining_terms = num_terms - term_index;
+
+        match remaining_terms {
+            1 => remaining_multiple,
+            2 => remaining_multiple.isqrt(),
+            _ => (remaining_multiple as f64).powf(1. / remaining_terms as f64).floor() as u64,
+        }
+    }
+
+    #[cfg(test)]
+    fn factors(&self) -> Vec<u64> {
+        self.non_final_terms.iter().map(|t| t.current_triple.2).collect()
+    }
+}
+
+impl NonFinalTerm {
+    fn new(_term_index: usize) -> Self {
+        Self {
+            current_triple: (0, 0, 1, 0),
+            cumulative_product: 1,
+            next_index: 0,
+            end_index: usize::MAX,
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn it_can_advance_through_each_non_final_term_ensuring_lexical_ordering() {
+        let pythagorean_triples = PythagoreanTriples::new(100);
+        let mut composite_number = CompositeNumber::new(2..=3, 0..1000, pythagorean_triples);
+        assert_eq!(composite_number.factors(), &[1, 5]);
+
+        composite_number.next_non_final_term(1);
+        assert_eq!(composite_number.factors(), &[1, 13]);
+
+        composite_number.next_non_final_term(1);
+        assert_eq!(composite_number.factors(), &[1, 17]);
+
+        composite_number.next_non_final_term(0);
+        assert_eq!(composite_number.factors(), &[5, 5]);
+    }
+
+    #[test]
+    fn it_returns_false_when_the_search_range_has_been_exhausted() {
+        let pythagorean_triples = PythagoreanTriples::new(100);
+        let mut composite_number = CompositeNumber::new(2..=3, 0..1000, pythagorean_triples);
+        assert_eq!(composite_number.factors(), &[1, 5]);
+        assert!(5 * 5 < 1000);
+
+        assert!(composite_number.next_non_final_term(1));
+        assert_eq!(composite_number.factors(), &[1, 13]);
+        assert!(13 * 13 < 1000);
+
+        assert!(composite_number.next_non_final_term(1));
+        assert_eq!(composite_number.factors(), &[1, 17]);
+        assert!(17 * 17 < 1000);
+
+        assert!(composite_number.next_non_final_term(1));
+        assert_eq!(composite_number.factors(), &[1, 29]);
+        assert!(29 * 29 < 1000);
+
+        assert!(!composite_number.next_non_final_term(1));
+        assert_eq!(composite_number.factors(), &[1, 29]);
+        assert!(37 * 37 >= 1000);
+
+        assert!(composite_number.next_non_final_term(0));
+        assert_eq!(composite_number.factors(), &[5, 5]);
+        assert!(5 * 5 * 5 < 1000);
+
+        assert!(!composite_number.next_non_final_term(0));
+        assert_eq!(composite_number.factors(), &[5, 5]);
+        assert!(13 * 13 * 13 >= 1000);
+    }
+
+    #[test]
+    fn it_sets_the_current_triple_of_each_non_final_term() {
+        let pythagorean_triples = PythagoreanTriples::new(100);
+        let mut composite_number = CompositeNumber::new(2..=3, 0..1000, pythagorean_triples);
+
+        assert_eq!(composite_number.factors(), &[1, 5]);
+        assert_eq!(composite_number.non_final_terms[0].current_triple, (0, 0, 1, 0));
+        assert_eq!(composite_number.non_final_terms[1].current_triple, (3, 4, 5, 1));
+
+        composite_number.next_non_final_term(1);
+        assert_eq!(composite_number.factors(), &[1, 13]);
+        assert_eq!(composite_number.non_final_terms[0].current_triple, (0, 0, 1, 0));
+        assert_eq!(composite_number.non_final_terms[1].current_triple, (5, 12, 13, 1));
+
+        composite_number.next_non_final_term(0);
+        assert_eq!(composite_number.factors(), &[5, 5]);
+        assert_eq!(composite_number.non_final_terms[0].current_triple, (3, 4, 5, 1));
+        assert_eq!(composite_number.non_final_terms[1].current_triple, (3, 4, 5, 1));
+
+        composite_number.next_non_final_term(1);
+        assert_eq!(composite_number.factors(), &[5, 13]);
+        assert_eq!(composite_number.non_final_terms[0].current_triple, (3, 4, 5, 1));
+        assert_eq!(composite_number.non_final_terms[1].current_triple, (5, 12, 13, 2));
+    }
+
+    #[test]
+    fn it_calculates_the_cumulative_product_of_each_non_final_term() {
+        let pythagorean_triples = PythagoreanTriples::new(100);
+        let mut composite_number = CompositeNumber::new(2..=3, 0..1000, pythagorean_triples);
+
+        assert_eq!(composite_number.factors(), &[1, 5]);
+        assert_eq!(composite_number.non_final_terms[0].cumulative_product, 1);
+        assert_eq!(composite_number.non_final_terms[1].cumulative_product, 5);
+
+        composite_number.next_non_final_term(1);
+        assert_eq!(composite_number.factors(), &[1, 13]);
+        assert_eq!(composite_number.non_final_terms[0].cumulative_product, 1);
+        assert_eq!(composite_number.non_final_terms[1].cumulative_product, 13);
+
+        composite_number.next_non_final_term(0);
+        assert_eq!(composite_number.factors(), &[5, 5]);
+        assert_eq!(composite_number.non_final_terms[0].cumulative_product, 5);
+        assert_eq!(composite_number.non_final_terms[1].cumulative_product, 25);
+
+        composite_number.next_non_final_term(1);
+        assert_eq!(composite_number.factors(), &[5, 13]);
+        assert_eq!(composite_number.non_final_terms[0].cumulative_product, 5);
+        assert_eq!(composite_number.non_final_terms[1].cumulative_product, 65);
+    }
+}
