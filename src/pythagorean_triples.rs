@@ -193,7 +193,7 @@ impl PythagoreanTriples {
 
             (scale_vector * (a_vector + b_vector)).copy_to_slice(&mut self.a_values[chunk_start..chunk_end]);
             (scale_vector * a_vector.abs_diff(b_vector)).copy_to_slice(&mut self.b_values[chunk_start..chunk_end]);
-            final_product_vector.copy_to_slice(&mut self.c_values[chunk_start..chunk_end]);
+            // Skip setting self.c since the caller can assume it is the final_product.
         }
 
         for i in simd_end..num_unscaled {
@@ -204,7 +204,6 @@ impl PythagoreanTriples {
 
             self.a_values[i] = scale * (a + b);
             self.b_values[i] = scale * a.abs_diff(b);
-            self.c_values[i] = final_product;
         }
 
         let remainder = num_scaled % crate::SIMD_LANES;
@@ -214,11 +213,9 @@ impl PythagoreanTriples {
             let chunk_end = chunk_start + crate::SIMD_LANES;
             let a_vector = SimdU64::from_slice(&self.a_values[chunk_start..chunk_end]);
             let b_vector = SimdU64::from_slice(&self.b_values[chunk_start..chunk_end]);
-            let c_vector = SimdU64::from_slice(&self.c_values[chunk_start..chunk_end]);
 
             (a_vector + b_vector).copy_to_slice(&mut self.a_values[chunk_start..chunk_end]);
             a_vector.abs_diff(b_vector).copy_to_slice(&mut self.b_values[chunk_start..chunk_end]);
-            final_product_vector.copy_to_slice(&mut self.c_values[chunk_start..chunk_end]);
         }
 
         for i in simd_end..num_triples {
@@ -227,7 +224,6 @@ impl PythagoreanTriples {
 
             self.a_values[i] = a + b;
             self.b_values[i] = a.abs_diff(b);
-            self.c_values[i] = final_product;
         }
     }
 
@@ -409,7 +405,6 @@ mod test {
 
         assert_eq!(&triples2.a_values, &[1183, 1105, 1157, 1027, 1195, 959, 1183, 953]);
         assert_eq!(&triples2.b_values, &[169, 455, 299, 611, 5, 713, 169, 721]);
-        assert_eq!(&triples2.c_values, &[845, 845, 845, 845, 845, 845, 845, 845]);
 
         // Note that scaling reintroduces duplicates: (1183, 169, 845)
 
