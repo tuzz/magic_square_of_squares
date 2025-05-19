@@ -11,13 +11,13 @@ pub fn detect_magic_hourglass<F: Fn(u128, u128, u128, u128)>(primitive_start: us
 
     SQUARES.with_borrow_mut(|squares| {
         squares.clear();
-        squares.extend(a_values[..primitive_start].iter().map(|&a| { let a = a as u128; a * a }));
         squares.extend(b_values[..primitive_start].iter().rev().map(|&b| { let b = b as u128; b * b }));
+        squares.extend(a_values[..primitive_start].iter().map(|&a| { let a = a as u128; a * a }));
 
         let squares_primitive_start = squares.len();
 
-        squares.extend(a_values[primitive_start..].iter().map(|&a| { let a = a as u128; a * a }));
         squares.extend(b_values[primitive_start..].iter().rev().map(|&b| { let b = b as u128; b * b }));
+        squares.extend(a_values[primitive_start..].iter().map(|&a| { let a = a as u128; a * a }));
 
         for (i, &square1) in squares[squares_primitive_start..].iter().enumerate() {
             let remainder = magic_sum - square1;

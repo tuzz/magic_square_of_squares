@@ -160,6 +160,8 @@ impl CompositeNumber {
 
                 STATE.with_borrow_mut(|(current_powerset, temporary_buffer)| {
                     Self::update_triples_powerset(current_powerset, (a, b, c, f), Some(&previous_term.triples_powerset));
+
+                    current_powerset.sort_and_dedup_by_c_and_a(temporary_buffer);
                     current_powerset.remove_trivial(temporary_buffer);
                     current_powerset.into_magic_triples(final_product);
                     current_powerset.sort_and_dedup_by_primitive_and_a(temporary_buffer);
