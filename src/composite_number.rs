@@ -196,6 +196,7 @@ impl CompositeNumber {
         self.non_final_terms.iter().map(|t| t.current_triple.2).collect()
     }
 
+    #[cfg(test)]
     fn final_factors(&self) -> Vec<u64> {
         self.pythagorean_triples.c_values[self.final_term_start_index..self.final_term_end_index].to_vec()
     }

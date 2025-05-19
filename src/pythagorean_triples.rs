@@ -71,7 +71,8 @@ impl PythagoreanTriples {
         self.factors.resize(new_len, value as u32);
     }
 
-    pub fn with_capacity(capacity: usize) -> Self {
+    #[cfg(test)]
+    fn with_capacity(capacity: usize) -> Self {
         Self {
             a_values: Vec::with_capacity(capacity),
             b_values: Vec::with_capacity(capacity),
@@ -216,6 +217,7 @@ impl PythagoreanTriples {
 
     // We can parameterize pythagorean triples with x=a+b and y=|a-b| to find
     // solutions to a^2 + b^2 = 2c^2 which is what we care about for magic squares.
+    #[allow(clippy::wrong_self_convention)]
     pub fn into_magic_triples(&mut self, final_product: u64) {
         let num_triples = self.len();
         let num_unscaled = self.c_values.partition_point(|&c| c != final_product);
