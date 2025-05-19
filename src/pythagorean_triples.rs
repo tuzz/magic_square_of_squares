@@ -173,10 +173,30 @@ impl PythagoreanTriples {
         self.sort_and_dedup(buffer, |triples, i| (triples.c_values[i], triples.a_values[i]));
     }
 
+    // We can parameterize pythagorean triples with x=a+b and y=|a-b| to find
+    // solutions to a^2 + b^2 = 2c^2 which is what we care about for magic squares.
     pub fn into_magic_triples(&mut self, final_product: u64) {
-        let scale_end = self.c_values.partition_point(|&c| c != final_product);
+        let num_triples = self.len();
+        let num_unscaled = self.c_values.partition_point(|&c| c != final_product);
+        let num_scaled = num_triples - num_unscaled;
 
-        for i in 0..scale_end {
+        let remainder = num_unscaled % crate::SIMD_LANES;
+        let simd_end = num_unscaled - remainder;
+        let final_product_vector = SimdU64::splat(final_product);
+
+        for chunk_start in (0..simd_end).step_by(crate::SIMD_LANES) {
+            let chunk_end = chunk_start + crate::SIMD_LANES;
+            let a_vector = SimdU64::from_slice(&self.a_values[chunk_start..chunk_end]);
+            let b_vector = SimdU64::from_slice(&self.b_values[chunk_start..chunk_end]);
+            let c_vector = SimdU64::from_slice(&self.c_values[chunk_start..chunk_end]);
+            let scale_vector = final_product_vector / c_vector;
+
+            (scale_vector * (a_vector + b_vector)).copy_to_slice(&mut self.a_values[chunk_start..chunk_end]);
+            (scale_vector * a_vector.abs_diff(b_vector)).copy_to_slice(&mut self.b_values[chunk_start..chunk_end]);
+            final_product_vector.copy_to_slice(&mut self.c_values[chunk_start..chunk_end]);
+        }
+
+        for i in simd_end..num_unscaled {
             let a = self.a_values[i];
             let b = self.b_values[i];
             let c = self.c_values[i];
@@ -187,7 +207,21 @@ impl PythagoreanTriples {
             self.c_values[i] = final_product;
         }
 
-        for i in scale_end..self.len() {
+        let remainder = num_scaled % crate::SIMD_LANES;
+        let simd_end = num_unscaled + num_scaled - remainder;
+
+        for chunk_start in (num_unscaled..simd_end).step_by(crate::SIMD_LANES) {
+            let chunk_end = chunk_start + crate::SIMD_LANES;
+            let a_vector = SimdU64::from_slice(&self.a_values[chunk_start..chunk_end]);
+            let b_vector = SimdU64::from_slice(&self.b_values[chunk_start..chunk_end]);
+            let c_vector = SimdU64::from_slice(&self.c_values[chunk_start..chunk_end]);
+
+            (a_vector + b_vector).copy_to_slice(&mut self.a_values[chunk_start..chunk_end]);
+            a_vector.abs_diff(b_vector).copy_to_slice(&mut self.b_values[chunk_start..chunk_end]);
+            final_product_vector.copy_to_slice(&mut self.c_values[chunk_start..chunk_end]);
+        }
+
+        for i in simd_end..num_triples {
             let a = self.a_values[i];
             let b = self.b_values[i];
 
