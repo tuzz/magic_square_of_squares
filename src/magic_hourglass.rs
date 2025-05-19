@@ -7,36 +7,41 @@ pub fn detect_magic_hourglass<F: Fn(u128, u128, u128, u128)>(primitive_start: us
     let squared_center = center * center;
     let magic_sum = squared_center * 3;
 
-    thread_local!(static SQUARES: RefCell<Vec<u128>> = const { RefCell::new(vec![]) });
+    thread_local! {
+        static SQUARES: RefCell<(Vec<u128>, Vec<u128>)> = const { RefCell::new((vec![], vec![])) };
+    }
 
-    SQUARES.with_borrow_mut(|squares| {
-        squares.clear();
-        squares.extend(b_values[..primitive_start].iter().rev().map(|&b| { let b = b as u128; b * b }));
-        squares.extend(a_values[..primitive_start].iter().map(|&a| { let a = a as u128; a * a }));
+    SQUARES.with_borrow_mut(|(non_primitive, primitive)| {
+        non_primitive.clear();
+        non_primitive.extend(b_values[..primitive_start].iter().rev().map(|&b| { let b = b as u128; b * b }));
+        non_primitive.extend(a_values[..primitive_start].iter().map(|&a| { let a = a as u128; a * a }));
 
-        let squares_primitive_start = squares.len();
+        primitive.clear();
+        primitive.extend(b_values[primitive_start..].iter().rev().map(|&b| { let b = b as u128; b * b }));
+        primitive.extend(a_values[primitive_start..].iter().map(|&a| { let a = a as u128; a * a }));
 
-        squares.extend(b_values[primitive_start..].iter().rev().map(|&b| { let b = b as u128; b * b }));
-        squares.extend(a_values[primitive_start..].iter().map(|&a| { let a = a as u128; a * a }));
-
-        for (i, &square1) in squares[squares_primitive_start..].iter().enumerate() {
+        for (i, &square1) in primitive.iter().enumerate() {
             let remainder = magic_sum - square1;
-            let upto_index1 = squares[..squares_primitive_start].partition_point(|&square| square < remainder);
 
-            for (j, &square2) in squares[..upto_index1].iter().enumerate() {
+            let upto_index1 = primitive[..i].partition_point(|&square| square < remainder);
+            let upto_index2 = non_primitive.partition_point(|&square| square < remainder);
+
+            for &square2 in &primitive[..upto_index1] {
                 let target = remainder - square2;
 
-                if squares[j + 1..squares_primitive_start].binary_search(&target).is_ok() {
+                if primitive[..upto_index1].binary_search(&target).is_ok() {
+                    callback(square1, square2, target, magic_sum);
+                };
+
+                if non_primitive[..upto_index2].binary_search(&target).is_ok() {
                     callback(square1, square2, target, magic_sum);
                 }
             }
 
-            let upto_index2 = squares[squares_primitive_start..squares_primitive_start + i].partition_point(|&square| square < remainder);
-
-            for (j, &square2) in squares[squares_primitive_start..squares_primitive_start + upto_index2].iter().enumerate() {
+            for &square2 in &non_primitive[..upto_index2] {
                 let target = remainder - square2;
 
-                if squares[squares_primitive_start + j + 1..squares_primitive_start + i].binary_search(&target).is_ok() {
+                if non_primitive[..upto_index2].binary_search(&target).is_ok() {
                     callback(square1, square2, target, magic_sum);
                 }
             }
