@@ -12,7 +12,7 @@ const PRINT_FACTORS: bool = false;
 const SIMD_LANES: usize = 64;
 
 fn main() {
-    let pythagorean_triples = PythagoreanTriples::new(1_000_000);
+    let pythagorean_triples = PythagoreanTriples::new(500_000_000);
     let max_factors = u64::MAX.ilog(5) as usize;
 
     CompositeNumber::new(2..=max_factors, 0..100_000_000_000, pythagorean_triples).for_each(|primitive_start, a_values, b_values, c| {
