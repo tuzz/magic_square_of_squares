@@ -13,7 +13,6 @@ pub struct PythagoreanTriples {
 
 #[derive(Default)]
 pub struct TemporaryBuffer {
-    ascending: Vec<usize>,
     indexes: Vec<usize>,
     values: Vec<u64>,
     factors: Vec<u32>,
@@ -184,10 +183,8 @@ impl PythagoreanTriples {
     pub fn sort_and_dedup<F: Fn(&Self, usize) -> O, O: Ord>(&mut self, buffer: &mut TemporaryBuffer, key: F) {
         let num_triples = self.len();
 
-        buffer.ascending.extend(buffer.ascending.len()..num_triples);
-        buffer.indexes.resize(num_triples, 0);
-        buffer.indexes.copy_from_slice(&buffer.ascending[..num_triples]);
-
+        buffer.indexes.clear();
+        buffer.indexes.extend(0..num_triples);
         buffer.indexes.sort_by_key(|&i| key(self, i));
         buffer.indexes.dedup_by_key(|&mut i| key(self, i));
 
