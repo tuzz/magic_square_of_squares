@@ -185,7 +185,7 @@ impl PythagoreanTriples {
 
         buffer.indexes.clear();
         buffer.indexes.extend(0..num_triples);
-        buffer.indexes.sort_by_key(|&i| key(self, i));
+        buffer.indexes.sort_unstable_by_key(|&i| key(self, i));
         buffer.indexes.dedup_by_key(|&mut i| key(self, i));
 
         self.retain_indexes(buffer);
