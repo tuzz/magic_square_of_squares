@@ -200,16 +200,17 @@ impl PythagoreanTriples {
     }
 
     fn retain_indexes(&mut self, buffer: &mut TemporaryBuffer) {
-        buffer.values.resize(buffer.indexes.len(), 0);
-        buffer.factors.resize(buffer.indexes.len(), 0);
+        let num_indexes = buffer.indexes.len();
+        buffer.values.resize(num_indexes, 0);
+        buffer.factors.resize(num_indexes, 0);
 
         for values in [&mut self.a_values, &mut self.b_values, &mut self.c_values] {
-            buffer.indexes.iter().enumerate().for_each(|(i, &j)| buffer.values[i] = values[j]);
+            buffer.indexes.iter().enumerate().for_each(|(i, &j)| buffer.values[i] = unsafe { *values.get_unchecked(j) });
             values.clear();
             values.extend_from_slice(&buffer.values);
         }
 
-        buffer.indexes.iter().enumerate().for_each(|(i, &j)| buffer.factors[i] = self.factors[j]);
+        buffer.indexes.iter().enumerate().for_each(|(i, &j)| buffer.factors[i] = unsafe { *self.factors.get_unchecked(j) });
         self.factors.clear();
         self.factors.extend_from_slice(&buffer.factors);
     }
