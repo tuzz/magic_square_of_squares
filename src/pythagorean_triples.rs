@@ -18,6 +18,8 @@ pub struct TemporaryBuffer {
     b_values: Vec<u64>,
     c_values: Vec<u64>,
     factors: Vec<u32>,
+    non_primitive: Vec<(u64, usize)>,
+    primitive: Vec<(u64, usize)>,
 }
 
 type SimdU32 = Simd::<u32, { crate::SIMD_LANES }>;
@@ -183,23 +185,42 @@ impl PythagoreanTriples {
         self.retain_indexes(buffer);
     }
 
-    pub fn sort_and_dedup<F: Fn(&Self, usize) -> O, O: Ord>(&mut self, buffer: &mut TemporaryBuffer, key: F) {
+    pub fn sort_and_dedup_by_c_and_a(&mut self, buffer: &mut TemporaryBuffer) {
         let num_triples = self.len();
 
         buffer.indexes.clear();
         buffer.indexes.extend(0..num_triples);
-        buffer.indexes.sort_unstable_by_key(|&i| key(self, i));
-        buffer.indexes.dedup_by_key(|&mut i| key(self, i));
+        buffer.indexes.sort_unstable_by_key(|&i| (self.c_values[i], self.a_values[i]));
+        buffer.indexes.dedup_by_key(|&mut i| (self.c_values[i], self.a_values[i]));
 
         self.retain_indexes(buffer);
     }
 
-    pub fn sort_and_dedup_by_c_and_a(&mut self, buffer: &mut TemporaryBuffer) {
-        self.sort_and_dedup(buffer, |triples, i| (triples.c_values[i], triples.a_values[i]));
-    }
-
     pub fn sort_and_dedup_by_primitive_and_a(&mut self, buffer: &mut TemporaryBuffer) {
-        self.sort_and_dedup(buffer, |triples, i| (triples.factors[i] & TOP_BIT == 0, triples.a_values[i]));
+        buffer.non_primitive.clear();
+        buffer.primitive.clear();
+
+        for (i, (&a, &f)) in self.a_values.iter().zip(&self.factors).enumerate() {
+            let is_non_primitive = f & TOP_BIT != 0;
+
+            if is_non_primitive {
+                buffer.non_primitive.push((a, i));
+            } else {
+                buffer.primitive.push((a, i));
+            }
+        }
+
+        buffer.non_primitive.sort_unstable_by_key(|(a, _)| *a);
+        buffer.primitive.sort_unstable_by_key(|(a, _)| *a);
+
+        buffer.non_primitive.dedup_by_key(|(a, _)| *a);
+        buffer.primitive.dedup_by_key(|(a, _)| *a);
+
+        buffer.indexes.clear();
+        buffer.indexes.extend(buffer.non_primitive.iter().map(|&(_, i)| i));
+        buffer.indexes.extend(buffer.primitive.iter().map(|&(_, i)| i));
+
+        self.retain_indexes(buffer);
     }
 
     fn retain_indexes(&mut self, buffer: &mut TemporaryBuffer) {
