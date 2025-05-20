@@ -14,7 +14,9 @@ pub struct PythagoreanTriples {
 #[derive(Default)]
 pub struct TemporaryBuffer {
     indexes: Vec<usize>,
-    values: Vec<u64>,
+    a_values: Vec<u64>,
+    b_values: Vec<u64>,
+    c_values: Vec<u64>,
     factors: Vec<u32>,
 }
 
@@ -201,17 +203,29 @@ impl PythagoreanTriples {
 
     fn retain_indexes(&mut self, buffer: &mut TemporaryBuffer) {
         let num_indexes = buffer.indexes.len();
-        buffer.values.resize(num_indexes, 0);
+
+        buffer.a_values.resize(num_indexes, 0);
+        buffer.b_values.resize(num_indexes, 0);
+        buffer.c_values.resize(num_indexes, 0);
         buffer.factors.resize(num_indexes, 0);
 
-        for values in [&mut self.a_values, &mut self.b_values, &mut self.c_values] {
-            buffer.indexes.iter().enumerate().for_each(|(i, &j)| buffer.values[i] = unsafe { *values.get_unchecked(j) });
-            values.clear();
-            values.extend_from_slice(&buffer.values);
+        for (i, &j) in buffer.indexes.iter().enumerate() {
+            unsafe {
+                buffer.a_values[i] = *self.a_values.get_unchecked(j);
+                buffer.b_values[i] = *self.b_values.get_unchecked(j);
+                buffer.c_values[i] = *self.c_values.get_unchecked(j);
+                buffer.factors[i] = *self.factors.get_unchecked(j);
+            }
         }
 
-        buffer.indexes.iter().enumerate().for_each(|(i, &j)| buffer.factors[i] = unsafe { *self.factors.get_unchecked(j) });
+        self.a_values.clear();
+        self.b_values.clear();
+        self.c_values.clear();
         self.factors.clear();
+
+        self.a_values.extend_from_slice(&buffer.a_values);
+        self.b_values.extend_from_slice(&buffer.b_values);
+        self.c_values.extend_from_slice(&buffer.c_values);
         self.factors.extend_from_slice(&buffer.factors);
     }
 
