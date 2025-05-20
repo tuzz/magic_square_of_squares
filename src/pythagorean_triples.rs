@@ -26,6 +26,7 @@ type SimdU64 = Simd::<u64, { crate::SIMD_LANES }>;
 const TOP_BIT: u32 = 1 << 31;
 const TOP_BIT_VECTOR: SimdU32 = SimdU32::splat(TOP_BIT);
 const ZERO_VECTOR: SimdU32 = SimdU32::splat(0);
+const ONE_VECTOR: SimdU64 = SimdU64::splat(1);
 
 impl PythagoreanTriples {
     pub fn new(num_primes: usize) -> Self {
@@ -234,11 +235,8 @@ impl PythagoreanTriples {
     #[allow(clippy::wrong_self_convention)]
     pub fn into_magic_triples(&mut self, final_product: u64) {
         let num_triples = self.len();
-        let num_unscaled = self.c_values.partition_point(|&c| c != final_product);
-        let num_scaled = num_triples - num_unscaled;
-
-        let remainder = num_unscaled % crate::SIMD_LANES;
-        let simd_end = num_unscaled - remainder;
+        let remainder = num_triples % crate::SIMD_LANES;
+        let simd_end = num_triples - remainder;
         let final_product_vector = SimdU64::splat(final_product);
 
         for chunk_start in (0..simd_end).step_by(crate::SIMD_LANES) {
@@ -246,44 +244,32 @@ impl PythagoreanTriples {
             let a_vector = SimdU64::from_slice(&self.a_values[chunk_start..chunk_end]);
             let b_vector = SimdU64::from_slice(&self.b_values[chunk_start..chunk_end]);
             let c_vector = SimdU64::from_slice(&self.c_values[chunk_start..chunk_end]);
+            let f_vector = SimdU32::from_slice(&self.factors[chunk_start..chunk_end]);
             let scale_vector = final_product_vector / c_vector;
+
+            let is_non_primitive = scale_vector.simd_ne(ONE_VECTOR).cast::<i32>();
+            let non_primitive_flag = is_non_primitive.select(TOP_BIT_VECTOR, ZERO_VECTOR);
+            let factors_vector = non_primitive_flag | f_vector;
 
             (scale_vector * (a_vector + b_vector)).copy_to_slice(&mut self.a_values[chunk_start..chunk_end]);
             (scale_vector * a_vector.abs_diff(b_vector)).copy_to_slice(&mut self.b_values[chunk_start..chunk_end]);
             // Skip setting self.c since the caller can assume it is the final_product.
-            TOP_BIT_VECTOR.copy_to_slice(&mut self.factors[chunk_start..chunk_end]);
-        }
-
-        for i in simd_end..num_unscaled {
-            let a = self.a_values[i];
-            let b = self.b_values[i];
-            let c = self.c_values[i];
-            let scale = final_product / c;
-
-            self.a_values[i] = scale * (a + b);
-            self.b_values[i] = scale * a.abs_diff(b);
-            self.factors[i] = TOP_BIT;
-        }
-
-        let remainder = num_scaled % crate::SIMD_LANES;
-        let simd_end = num_unscaled + num_scaled - remainder;
-
-        for chunk_start in (num_unscaled..simd_end).step_by(crate::SIMD_LANES) {
-            let chunk_end = chunk_start + crate::SIMD_LANES;
-            let a_vector = SimdU64::from_slice(&self.a_values[chunk_start..chunk_end]);
-            let b_vector = SimdU64::from_slice(&self.b_values[chunk_start..chunk_end]);
-
-            (a_vector + b_vector).copy_to_slice(&mut self.a_values[chunk_start..chunk_end]);
-            a_vector.abs_diff(b_vector).copy_to_slice(&mut self.b_values[chunk_start..chunk_end]);
-            // Facotrs are unchanged when c=final_product.
+            factors_vector.copy_to_slice(&mut self.factors[chunk_start..chunk_end]);
         }
 
         for i in simd_end..num_triples {
             let a = self.a_values[i];
             let b = self.b_values[i];
+            let c = self.c_values[i];
+            let f = self.factors[i];
+            let scale = final_product / c;
 
-            self.a_values[i] = a + b;
-            self.b_values[i] = a.abs_diff(b);
+            let is_non_primitive = scale != 1;
+            let non_primitive_flag = is_non_primitive as u32 * TOP_BIT;
+
+            self.a_values[i] = scale * (a + b);
+            self.b_values[i] = scale * a.abs_diff(b);
+            self.factors[i] = non_primitive_flag | f;
         }
     }
 
@@ -499,7 +485,6 @@ mod test {
         triples1.push((5, 12, 13, 2));
         triples1.extend(&triples0);
         triples0.product((5, 12, 13, 2), &mut triples1);
-        triples1.sort_and_dedup_by_c_and_a(&mut buffer);
         triples1.remove_trivial(&mut buffer);
 
         let final_product = 5 * 13;
@@ -508,7 +493,7 @@ mod test {
 
         assert_eq!(&triples1.a_values, &[85, 91, 79, 89]);
         assert_eq!(&triples1.b_values, &[35, 13, 47, 23]);
-        assert_eq!(&triples1.factors, &[TOP_BIT, TOP_BIT, 0b11, 0b11]);
+        assert_eq!(&triples1.factors, &[TOP_BIT + 0b10, TOP_BIT + 0b1, 0b11, 0b11]);
         assert_eq!(triples1.primitive_start(), 2);
     }
 }
