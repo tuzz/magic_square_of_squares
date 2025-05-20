@@ -49,7 +49,7 @@ impl CompositeNumber {
             self.for_each_in_search_range(&callback);
 
             self.search_range.start = self.search_range.end;
-            self.search_range.end += 100_000_000_000;
+            self.search_range.end += crate::SEARCH_INTERVAL;
 
             self.non_final_terms.iter_mut().for_each(|t| t.reset(self.pythagorean_triples.len()));
             self.next_non_final_term(self.num_factors.end() - self.num_factors.start());
