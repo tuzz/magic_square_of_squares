@@ -196,7 +196,7 @@ impl PythagoreanTriples {
         self.retain_indexes(buffer);
     }
 
-    pub fn sort_and_dedup_by_primitive_and_a(&mut self, buffer: &mut TemporaryBuffer) {
+    pub fn sort_and_dedup_by_primitive_and_a(&mut self, buffer: &mut TemporaryBuffer) -> usize {
         buffer.non_primitive.clear();
         buffer.primitive.clear();
 
@@ -221,6 +221,7 @@ impl PythagoreanTriples {
         buffer.indexes.extend(buffer.primitive.iter().map(|&(_, i)| i));
 
         self.retain_indexes(buffer);
+        buffer.non_primitive.len()
     }
 
     fn retain_indexes(&mut self, buffer: &mut TemporaryBuffer) {
@@ -292,10 +293,6 @@ impl PythagoreanTriples {
             self.b_values[i] = scale * a.abs_diff(b);
             self.factors[i] = non_primitive_flag | f;
         }
-    }
-
-    pub fn primitive_start(&self) -> usize {
-        self.factors.partition_point(|&f| f & TOP_BIT != 0)
     }
 
     // Use Cornacchia's algorithm to solve a^2 + b^2 = p then apply Euclid's
@@ -510,11 +507,11 @@ mod test {
 
         let final_product = 5 * 13;
         triples1.into_magic_triples(final_product);
-        triples1.sort_and_dedup_by_primitive_and_a(&mut buffer);
+        let primitive_start = triples1.sort_and_dedup_by_primitive_and_a(&mut buffer);
 
         assert_eq!(&triples1.a_values, &[85, 91, 79, 89]);
         assert_eq!(&triples1.b_values, &[35, 13, 47, 23]);
         assert_eq!(&triples1.factors, &[TOP_BIT + 0b10, TOP_BIT + 0b1, 0b11, 0b11]);
-        assert_eq!(triples1.primitive_start(), 2);
+        assert_eq!(primitive_start, 2);
     }
 }

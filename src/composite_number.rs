@@ -163,9 +163,10 @@ impl CompositeNumber {
 
                     current_powerset.remove_trivial(temporary_buffer);
                     current_powerset.into_magic_triples(final_product);
-                    current_powerset.sort_and_dedup_by_primitive_and_a(temporary_buffer);
 
-                    callback(current_powerset.primitive_start(), &mut current_powerset.a_values, &mut current_powerset.b_values, final_product);
+                    let primitive_start = current_powerset.sort_and_dedup_by_primitive_and_a(temporary_buffer);
+
+                    callback(primitive_start, &mut current_powerset.a_values, &mut current_powerset.b_values, final_product);
                 });
             });
         }
