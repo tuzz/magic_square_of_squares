@@ -164,7 +164,10 @@ impl CompositeNumber {
                     current_powerset.remove_trivial(temporary_buffer);
                     current_powerset.into_magic_triples(final_product);
 
-                    let primitive_start = current_powerset.sort_and_dedup_by_primitive_and_a(temporary_buffer);
+                    let primitive_start = match crate::DETECT_HOURGLASS {
+                        true => current_powerset.sort_and_dedup_by_primitive_and_a(temporary_buffer),
+                        false => { current_powerset.sort_and_dedup_by_a(temporary_buffer); 0 }
+                    };
 
                     callback(primitive_start, &mut current_powerset.a_values, &mut current_powerset.b_values, final_product);
                 });
@@ -401,7 +404,9 @@ mod test {
     }
 
     #[test]
-    fn it_can_enumerate_all_final_terms_in_the_search_range_and_yield_magic_triples() {
+    fn it_can_enumerate_all_final_terms_in_the_search_range_and_yield_magic_triples_hourglass() {
+        if !crate::DETECT_HOURGLASS { return; } // Split this test into two cases.
+
         let pythagorean_triples = PythagoreanTriples::new(100);
         let mut composite_number = CompositeNumber::new(2..=3, 0..150, pythagorean_triples);
         assert_eq!(composite_number.non_final_factors(), &[1, 5]);
@@ -423,7 +428,33 @@ mod test {
     }
 
     #[test]
-    fn it_can_enumerate_all_composite_numbers_in_the_search_range_and_yield_magic_triples() {
+    fn it_can_enumerate_all_final_terms_in_the_search_range_and_yield_magic_triples_patterns() {
+        if crate::DETECT_HOURGLASS { return; } // Split this test into two cases.
+
+        let pythagorean_triples = PythagoreanTriples::new(100);
+        let mut composite_number = CompositeNumber::new(2..=3, 0..150, pythagorean_triples);
+        assert_eq!(composite_number.non_final_factors(), &[1, 5]);
+
+        let callbacks = Mutex::new(vec![]);
+        composite_number.for_each_final_term(|primitive_start, a_values, b_values, c| {
+            callbacks.lock().unwrap().push((primitive_start, a_values.to_vec(), b_values.to_vec(), c))
+        });
+
+        let mut callbacks = callbacks.into_inner().unwrap();
+        callbacks.sort_by_key(|&(_, _, _, c)| c);
+        assert_eq!(callbacks.len(), 4);
+
+                                       // a_values                  b_values          c
+        assert_eq!(callbacks[0], (0, vec![31, 35],             vec![17, 5],           25));
+        assert_eq!(callbacks[1], (0, vec![79, 85, 89, 91],     vec![47, 35, 23, 13],  65));
+        assert_eq!(callbacks[2], (0, vec![97, 113, 115, 119],  vec![71, 41, 35, 17],  85));
+        assert_eq!(callbacks[3], (0, vec![161, 167, 203, 205], vec![127, 119, 29, 5], 145));
+    }
+
+    #[test]
+    fn it_can_enumerate_all_composite_numbers_in_the_search_range_and_yield_magic_triples_hourglass() {
+        if !crate::DETECT_HOURGLASS { return; } // Otherwise, primitive_start is 0 and the sort order is different.
+
         let pythagorean_triples = PythagoreanTriples::new(100);
         let mut composite_number = CompositeNumber::new(2..=3, 0..150, pythagorean_triples);
 
@@ -444,5 +475,31 @@ mod test {
 
         // These triples are for 5 x 5 x final_term.
         assert_eq!(callbacks[3], (3, vec![155, 161, 175], vec![85, 73, 25], 125));
+    }
+
+    #[test]
+    fn it_can_enumerate_all_composite_numbers_in_the_search_range_and_yield_magic_triples_patterns() {
+        if crate::DETECT_HOURGLASS { return; } // Otherwise, primitive_start is 0 and the sort order is different.
+
+        let pythagorean_triples = PythagoreanTriples::new(100);
+        let mut composite_number = CompositeNumber::new(2..=3, 0..150, pythagorean_triples);
+
+        let callbacks = Mutex::new(vec![]);
+        composite_number.for_each_in_search_range(|primitive_start, a_values, b_values, c| {
+            callbacks.lock().unwrap().push((primitive_start, a_values.to_vec(), b_values.to_vec(), c))
+        });
+
+        let mut callbacks = callbacks.into_inner().unwrap();
+        callbacks.sort_by_key(|&(_, _, _, c)| c);
+        assert_eq!(callbacks.len(), 5);
+
+        // These triples are for 1 x 5 x final_term (the same as the test above).
+        assert_eq!(callbacks[0], (0, vec![31, 35],             vec![17, 5],           25));
+        assert_eq!(callbacks[1], (0, vec![79, 85, 89, 91],     vec![47, 35, 23, 13],  65));
+        assert_eq!(callbacks[2], (0, vec![97, 113, 115, 119],  vec![71, 41, 35, 17],  85));
+        assert_eq!(callbacks[4], (0, vec![161, 167, 203, 205], vec![127, 119, 29, 5], 145));
+
+        // These triples are for 5 x 5 x final_term.
+        assert_eq!(callbacks[3], (0, vec![155, 161, 175], vec![85, 73, 25], 125));
     }
 }

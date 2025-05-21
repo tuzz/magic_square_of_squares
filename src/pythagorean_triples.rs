@@ -224,6 +224,17 @@ impl PythagoreanTriples {
         buffer.non_primitive.len()
     }
 
+    pub fn sort_and_dedup_by_a(&mut self, buffer: &mut TemporaryBuffer) {
+        let num_triples = self.len();
+
+        buffer.indexes.clear();
+        buffer.indexes.extend(0..num_triples);
+        buffer.indexes.sort_unstable_by_key(|&i| self.a_values[i]);
+        buffer.indexes.dedup_by_key(|&mut i| self.a_values[i]);
+
+        self.retain_indexes(buffer);
+    }
+
     fn retain_indexes(&mut self, buffer: &mut TemporaryBuffer) {
         let num_indexes = buffer.indexes.len();
 

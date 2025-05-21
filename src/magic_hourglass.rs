@@ -2,7 +2,7 @@ use std::cell::RefCell;
 
 // A "magic hourglass" is defined in this paper: http://www.multimagie.com/Buell.pdf
 
-pub fn detect_magic_hourglass<F: Fn(u128, u128, u128, u128)>(primitive_start: usize, a_values: &[u64], b_values: &[u64], c: u64, callback: F) {
+pub fn detect_magic_hourglass(primitive_start: usize, a_values: &[u64], b_values: &[u64], c: u64) {
     let center = c as u128;
     let squared_center = center * center;
     let magic_sum = squared_center * 3;
@@ -30,11 +30,11 @@ pub fn detect_magic_hourglass<F: Fn(u128, u128, u128, u128)>(primitive_start: us
                 let target = remainder - square2;
 
                 if primitive[..upto_index1].binary_search(&target).is_ok() {
-                    callback(square1, square2, target, magic_sum);
+                    println!("EUREKA! {square1} + {square2} + {target} = {magic_sum}")
                 };
 
                 if non_primitive[..upto_index2].binary_search(&target).is_ok() {
-                    callback(square1, square2, target, magic_sum);
+                    println!("EUREKA! {square1} + {square2} + {target} = {magic_sum}")
                 }
             }
 
@@ -42,7 +42,7 @@ pub fn detect_magic_hourglass<F: Fn(u128, u128, u128, u128)>(primitive_start: us
                 let target = remainder - square2;
 
                 if non_primitive[..upto_index2].binary_search(&target).is_ok() {
-                    callback(square1, square2, target, magic_sum);
+                    println!("EUREKA! {square1} + {square2} + {target} = {magic_sum}")
                 }
             }
         }
