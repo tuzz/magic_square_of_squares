@@ -23,17 +23,13 @@ thread_local! {
 }
 
 pub fn check_magic_patterns(a_values: &[u64], b_values: &[u64], c: u64) {
+    if crate::HIDE_KNOWN_SOLUTION && c % 425 == 0 { return; }
+
     let center = c as u128;
     let center_square = center * center;
     let center_sum = center_square + center_square;
     let magic_sum = center_sum + center_square;
     let center_cell = Cell::new(center_square, magic_sum);
-
-    if crate::HIDE_KNOWN_SOLUTION {
-        let k2 = center_square / 180_625;
-        let k = k2.isqrt();
-        if k * k == k2 { return; }
-    }
 
     CELLS.with_borrow_mut(|(a_cells, b_cells)| {
         a_cells.clear();
@@ -43,12 +39,21 @@ pub fn check_magic_patterns(a_values: &[u64], b_values: &[u64], c: u64) {
         b_cells.extend(b_values.iter().map(|&b| Cell::squared(b, magic_sum)));
 
         for (i, (a_cell1, b_cell1)) in a_cells.iter().zip(b_cells.iter()).enumerate() {
-            for (a_cell2, b_cell2) in a_cells[i + 1..].iter().zip(&b_cells[i + 1..]) {
-                check_patterns_1_and_2(&center_cell, a_cell1, b_cell1, a_cell2, b_cell2);
+            let other_a_cells = &a_cells[i + 1..];
+            let other_b_cells = &b_cells[i + 1..];
 
+            let upto_index = other_a_cells.partition_point(|a_cell| a_cell.value < a_cell1.magic_sum_minus_value);
+
+            // a_cell1 and a_cell2 may be on the same line:
+            for (a_cell2, b_cell2) in other_a_cells[..upto_index].iter().zip(&other_b_cells[..upto_index]) {
+                check_patterns_1_and_2(&center_cell, a_cell1, b_cell1, a_cell2, b_cell2);
+                check_patterns_3_4_and_6(&center_cell, a_cell1, b_cell1, b_cell2, a_cell2);
+                check_patterns_3_4_and_6(&center_cell, a_cell2, b_cell2, b_cell1, a_cell1);
+            }
+
+            // a_cell1 and b_cell2 may be on the same line:
+            for (a_cell2, b_cell2) in other_a_cells.iter().zip(other_b_cells) {
                 check_patterns_3_4_and_6(&center_cell, a_cell1, b_cell1, a_cell2, b_cell2);
-                check_patterns_3_4_and_6(&center_cell, b_cell1, a_cell1, b_cell2, a_cell2);
-                check_patterns_3_4_and_6(&center_cell, a_cell2, b_cell2, a_cell1, b_cell1);
                 check_patterns_3_4_and_6(&center_cell, b_cell2, a_cell2, b_cell1, a_cell1);
             }
         }
@@ -56,8 +61,8 @@ pub fn check_magic_patterns(a_values: &[u64], b_values: &[u64], c: u64) {
 }
 
 fn check_patterns_1_and_2(center: &Cell, top_left: &Cell, bottom_right: &Cell, top_right: &Cell, bottom_left: &Cell) {
-    let Some(top_middle) = top_left.magic_sum_minus_value.checked_sub(top_right.value) else { return };
-    let Some(middle_left) = top_left.magic_sum_minus_value.checked_sub(bottom_left.value) else { return };
+    let top_middle = top_left.magic_sum_minus_value - top_right.value;
+    let middle_left = top_left.magic_sum_minus_value - bottom_left.value;
     let Some(bottom_middle) = bottom_left.magic_sum_minus_value.checked_sub(bottom_right.value) else { return };
 
     let mut num_squares = 5;
@@ -76,8 +81,8 @@ fn check_patterns_1_and_2(center: &Cell, top_left: &Cell, bottom_right: &Cell, t
 }
 
 fn check_patterns_3_4_and_6(center: &Cell, top_right: &Cell, bottom_left: &Cell, middle_left: &Cell, middle_right: &Cell) {
-    let Some(top_left) = bottom_left.magic_sum_minus_value.checked_sub(middle_left.value) else { return };
-    let Some(bottom_right) = top_right.magic_sum_minus_value.checked_sub(middle_right.value) else { return };
+    let top_left = bottom_left.magic_sum_minus_value - middle_left.value;
+    let bottom_right = top_right.magic_sum_minus_value - middle_right.value;
     let Some(top_middle) = top_right.magic_sum_minus_value.checked_sub(top_left) else { return };
 
     let mut num_squares = 5;
