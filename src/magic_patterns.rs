@@ -109,9 +109,17 @@ fn check_pattern_3_and_4(top_left: u128, left_square1: u128, left_square2: u128,
     }
 }
 
+const MAX_U64: u128 = u64::MAX as u128;
+
 fn is_square(n: u128) -> bool {
-    let root = n.isqrt();
-    root * root == n
+    if n <= MAX_U64 {
+        let n = n as u64;
+        let root = n.isqrt();
+        root * root == n
+    } else {
+        let root = n.isqrt();
+        root * root == n
+    }
 }
 
 fn print(top_left: u128, top_middle: u128, top_right: u128, middle_left: u128, middle_middle: u128, middle_right: u128, bottom_left: u128, bottom_middle: u128, bottom_right: u128) {
