@@ -1,7 +1,7 @@
 ## Magic Square of Squares
 
 An attempt to solve [open problem 1](http://www.multimagie.com/English/Problems.htm#SquaresOfSquares)
-by searching for a [magic hourglass](http://www.multimagie.com/Buell.pdf).
+by searching for [patterns 1, 2, 3, 4 or 6](http://www.multimagie.com/Search.pdf#page=2).
 
 ## Earlier attempts
 
