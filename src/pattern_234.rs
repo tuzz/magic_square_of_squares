@@ -122,7 +122,7 @@ fn is_square(n: u128) -> bool {
     }
 }
 
-fn print(top_left: u128, top_middle: u128, top_right: u128, middle_left: u128, middle_middle: u128, middle_right: u128, bottom_left: u128, bottom_middle: u128, bottom_right: u128) {
+pub fn print(top_left: u128, top_middle: u128, top_right: u128, middle_left: u128, middle_middle: u128, middle_right: u128, bottom_left: u128, bottom_middle: u128, bottom_right: u128) {
     println!("----------------------------------------------------------------------------------------------------");
     println!("| {top_left:^30} | {top_middle:^30} | {top_right:^30} |");
     println!("|--------------------------------------------------------------------------------------------------|");
