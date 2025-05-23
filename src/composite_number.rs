@@ -165,8 +165,8 @@ impl CompositeNumber {
                     current_powerset.into_magic_triples(final_product);
 
                     let primitive_start = match crate::SEARCH_MODE {
-                        SearchMode::Pattern1 | SearchMode::Pattern6 => current_powerset.sort_and_dedup_by_primitive_and_a(temporary_buffer),
-                        SearchMode::Pattern234 => { current_powerset.sort_and_dedup_by_a(temporary_buffer); 0 }
+                        SearchMode::Patterns16 => current_powerset.sort_and_dedup_by_primitive_and_a(temporary_buffer),
+                        SearchMode::Patterns234 => { current_powerset.sort_and_dedup_by_a(temporary_buffer); 0 }
                     };
 
                     callback(primitive_start, &mut current_powerset.a_values, &mut current_powerset.b_values, final_product);
@@ -404,8 +404,8 @@ mod test {
     }
 
     #[test]
-    fn it_can_enumerate_all_final_terms_in_the_search_range_and_yield_magic_triples_pattern1() {
-        if !matches!(crate::SEARCH_MODE, SearchMode::Pattern1) { return; }
+    fn it_can_enumerate_all_final_terms_in_the_search_range_and_yield_magic_triples_patterns16() {
+        if !matches!(crate::SEARCH_MODE, SearchMode::Patterns16) { return; }
 
         let pythagorean_triples = PythagoreanTriples::new(100);
         let mut composite_number = CompositeNumber::new(2..=3, 0..150, pythagorean_triples);
@@ -428,8 +428,8 @@ mod test {
     }
 
     #[test]
-    fn it_can_enumerate_all_final_terms_in_the_search_range_and_yield_magic_triples_pattern234() {
-        if !matches!(crate::SEARCH_MODE, SearchMode::Pattern234) { return; }
+    fn it_can_enumerate_all_final_terms_in_the_search_range_and_yield_magic_triples_patterns234() {
+        if !matches!(crate::SEARCH_MODE, SearchMode::Patterns234) { return; }
 
         let pythagorean_triples = PythagoreanTriples::new(100);
         let mut composite_number = CompositeNumber::new(2..=3, 0..150, pythagorean_triples);
@@ -452,8 +452,8 @@ mod test {
     }
 
     #[test]
-    fn it_can_enumerate_all_composite_numbers_in_the_search_range_and_yield_magic_triples_pattern1() {
-        if !matches!(crate::SEARCH_MODE, SearchMode::Pattern1) { return; }
+    fn it_can_enumerate_all_composite_numbers_in_the_search_range_and_yield_magic_triples_patterns16() {
+        if !matches!(crate::SEARCH_MODE, SearchMode::Patterns16) { return; }
 
         let pythagorean_triples = PythagoreanTriples::new(100);
         let mut composite_number = CompositeNumber::new(2..=3, 0..150, pythagorean_triples);
@@ -478,8 +478,8 @@ mod test {
     }
 
     #[test]
-    fn it_can_enumerate_all_composite_numbers_in_the_search_range_and_yield_magic_triples_pattern234() {
-        if !matches!(crate::SEARCH_MODE, SearchMode::Pattern234) { return; }
+    fn it_can_enumerate_all_composite_numbers_in_the_search_range_and_yield_magic_triples_patterns234() {
+        if !matches!(crate::SEARCH_MODE, SearchMode::Patterns234) { return; }
 
         let pythagorean_triples = PythagoreanTriples::new(100);
         let mut composite_number = CompositeNumber::new(2..=3, 0..150, pythagorean_triples);

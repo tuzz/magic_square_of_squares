@@ -6,7 +6,7 @@ thread_local! {
     static SQUARES: RefCell<(Vec<u128>, Vec<u128>)> = const { RefCell::new((vec![], vec![])) };
 }
 
-pub fn check_patterns_234(a_values: &[u64], b_values: &[u64], c: u64) {
+pub fn check_patterns_2_3_and_4(a_values: &[u64], b_values: &[u64], c: u64) {
     if crate::HIDE_KNOWN_SOLUTION && c % 425 == 0 { return; }
 
     let center = c as u128;
