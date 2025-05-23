@@ -1,5 +1,5 @@
 use rayon::prelude::*;
-use crate::{PythagoreanTriples, TemporaryBuffer};
+use crate::{PythagoreanTriples, TemporaryBuffer, SearchMode};
 use std::ops::{Range, RangeInclusive};
 use std::cell::RefCell;
 
@@ -164,9 +164,9 @@ impl CompositeNumber {
                     current_powerset.remove_trivial(temporary_buffer);
                     current_powerset.into_magic_triples(final_product);
 
-                    let primitive_start = match crate::DETECT_HOURGLASS {
-                        true => current_powerset.sort_and_dedup_by_primitive_and_a(temporary_buffer),
-                        false => { current_powerset.sort_and_dedup_by_a(temporary_buffer); 0 }
+                    let primitive_start = match crate::SEARCH_MODE {
+                        SearchMode::Pattern1 => current_powerset.sort_and_dedup_by_primitive_and_a(temporary_buffer),
+                        SearchMode::Pattern234 => { current_powerset.sort_and_dedup_by_a(temporary_buffer); 0 }
                     };
 
                     callback(primitive_start, &mut current_powerset.a_values, &mut current_powerset.b_values, final_product);
@@ -404,8 +404,8 @@ mod test {
     }
 
     #[test]
-    fn it_can_enumerate_all_final_terms_in_the_search_range_and_yield_magic_triples_hourglass() {
-        if !crate::DETECT_HOURGLASS { return; } // Split this test into two cases.
+    fn it_can_enumerate_all_final_terms_in_the_search_range_and_yield_magic_triples_pattern1() {
+        if !matches!(crate::SEARCH_MODE, SearchMode::Pattern1) { return; }
 
         let pythagorean_triples = PythagoreanTriples::new(100);
         let mut composite_number = CompositeNumber::new(2..=3, 0..150, pythagorean_triples);
@@ -428,8 +428,8 @@ mod test {
     }
 
     #[test]
-    fn it_can_enumerate_all_final_terms_in_the_search_range_and_yield_magic_triples_patterns() {
-        if crate::DETECT_HOURGLASS { return; } // Split this test into two cases.
+    fn it_can_enumerate_all_final_terms_in_the_search_range_and_yield_magic_triples_pattern234() {
+        if !matches!(crate::SEARCH_MODE, SearchMode::Pattern234) { return; }
 
         let pythagorean_triples = PythagoreanTriples::new(100);
         let mut composite_number = CompositeNumber::new(2..=3, 0..150, pythagorean_triples);
@@ -452,8 +452,8 @@ mod test {
     }
 
     #[test]
-    fn it_can_enumerate_all_composite_numbers_in_the_search_range_and_yield_magic_triples_hourglass() {
-        if !crate::DETECT_HOURGLASS { return; } // Otherwise, primitive_start is 0 and the sort order is different.
+    fn it_can_enumerate_all_composite_numbers_in_the_search_range_and_yield_magic_triples_pattern1() {
+        if !matches!(crate::SEARCH_MODE, SearchMode::Pattern1) { return; }
 
         let pythagorean_triples = PythagoreanTriples::new(100);
         let mut composite_number = CompositeNumber::new(2..=3, 0..150, pythagorean_triples);
@@ -478,8 +478,8 @@ mod test {
     }
 
     #[test]
-    fn it_can_enumerate_all_composite_numbers_in_the_search_range_and_yield_magic_triples_patterns() {
-        if crate::DETECT_HOURGLASS { return; } // Otherwise, primitive_start is 0 and the sort order is different.
+    fn it_can_enumerate_all_composite_numbers_in_the_search_range_and_yield_magic_triples_pattern234() {
+        if !matches!(crate::SEARCH_MODE, SearchMode::Pattern234) { return; }
 
         let pythagorean_triples = PythagoreanTriples::new(100);
         let mut composite_number = CompositeNumber::new(2..=3, 0..150, pythagorean_triples);

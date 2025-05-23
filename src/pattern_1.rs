@@ -1,8 +1,9 @@
 use std::cell::RefCell;
 
+// The patterns are from figure 5 of http://www.multimagie.com/Search.pdf#page=2
 // A "magic hourglass" is defined in this paper: http://www.multimagie.com/Buell.pdf
 
-pub fn detect_magic_hourglass(primitive_start: usize, a_values: &[u64], b_values: &[u64], c: u64) {
+pub fn check_pattern_1(primitive_start: usize, a_values: &[u64], b_values: &[u64], c: u64) {
     let center = c as u128;
     let squared_center = center * center;
     let magic_sum = squared_center * 3;
