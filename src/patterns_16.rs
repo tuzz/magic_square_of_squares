@@ -81,19 +81,19 @@ pub fn check_patterns_1_and_6(primitive_start: usize, a_values: &[u64], b_values
                 let pattern_6_target = if bottom_middle > top_middle { (bottom_middle, top_middle) } else { (top_middle, bottom_middle) };
 
                 if primitive[..i].binary_search(&pattern_1_target).is_ok() {
-                    print(top_left, top_middle, top_right, middle_left, squared_center, middle_right, bottom_left, bottom_middle, bottom_right);
+                    print(top_left, top_middle, top_right, middle_right, squared_center, middle_left, bottom_left, bottom_middle, bottom_right);
                 };
 
                 if non_primitive.binary_search(&pattern_1_target).is_ok() {
-                    print(top_left, top_middle, top_right, middle_left, squared_center, middle_right, bottom_left, bottom_middle, bottom_right);
+                    print(top_left, top_middle, top_right, middle_right, squared_center, middle_left, bottom_left, bottom_middle, bottom_right);
                 }
 
                 if primitive[..i].binary_search(&pattern_6_target).is_ok() {
-                    print(top_left, top_middle, top_right, middle_left, squared_center, middle_right, bottom_left, bottom_middle, bottom_right);
+                    print(top_left, top_middle, top_right, middle_right, squared_center, middle_left, bottom_left, bottom_middle, bottom_right);
                 };
 
                 if non_primitive.binary_search(&pattern_6_target).is_ok() {
-                    print(top_left, top_middle, top_right, middle_left, squared_center, middle_right, bottom_left, bottom_middle, bottom_right);
+                    print(top_left, top_middle, top_right, middle_right, squared_center, middle_left, bottom_left, bottom_middle, bottom_right);
                 }
             }
 
@@ -107,11 +107,11 @@ pub fn check_patterns_1_and_6(primitive_start: usize, a_values: &[u64], b_values
                 let pattern_6_target = if bottom_middle > top_middle { (bottom_middle, top_middle) } else { (top_middle, bottom_middle) };
 
                 if non_primitive.binary_search(&pattern_1_target).is_ok() {
-                    print(top_left, top_middle, top_right, middle_left, squared_center, middle_right, bottom_left, bottom_middle, bottom_right);
+                    print(top_left, top_middle, top_right, middle_right, squared_center, middle_left, bottom_left, bottom_middle, bottom_right);
                 }
 
                 if non_primitive.binary_search(&pattern_6_target).is_ok() {
-                    print(top_left, top_middle, top_right, middle_left, squared_center, middle_right, bottom_left, bottom_middle, bottom_right);
+                    print(top_left, top_middle, top_right, middle_right, squared_center, middle_left, bottom_left, bottom_middle, bottom_right);
                 }
             }
         }
